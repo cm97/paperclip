@@ -4,10 +4,12 @@ on:
   push:
     branches: [master]
     paths: ["buzzyfly-site/**", ".github/workflows/deploy-buzzyfly-site.yml"]
+  pull_request:
+    paths: ["buzzyfly-site/**", ".github/workflows/deploy-buzzyfly-site.yml"]
   workflow_dispatch:
 
 concurrency:
-  group: deploy-buzzyfly-site
+  group: deploy-buzzyfly-site-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -18,19 +20,41 @@ jobs:
     defaults:
       run:
         working-directory: buzzyfly-site
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || 'a5780ae59a275c38ad62c2f9a3636c75' }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: "22"
+      - run: npm ci
+      - name: Typecheck and dry-run (no credentials needed)
+        run: npm run check
       - name: Deploy to Cloudflare Workers
-        run: npx --yes wrangler@4 deploy
+        if: github.event_name != 'pull_request'
+        run: npx wrangler deploy
+      # Copies payment keys from this repo's GitHub secrets onto the Worker.
+      # Any secret that isn't set is skipped; the site then shows "Email us to buy".
+      - name: Sync Worker secrets
+        if: github.event_name != 'pull_request'
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || 'a5780ae59a275c38ad62c2f9a3636c75' }}
+          ACCESS_SECRET: ${{ secrets.ACCESS_SECRET }}
+          PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
+          PAYPAL_SECRET: ${{ secrets.PAYPAL_SECRET }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_LINK_STUDENT: ${{ secrets.STRIPE_LINK_STUDENT }}
+          STRIPE_LINK_CLASSROOM: ${{ secrets.STRIPE_LINK_CLASSROOM }}
+        run: |
+          for name in ACCESS_SECRET PAYPAL_CLIENT_ID PAYPAL_SECRET STRIPE_SECRET_KEY STRIPE_LINK_STUDENT STRIPE_LINK_CLASSROOM; do
+            if [ -n "${!name}" ]; then printf '%s' "${!name}" | npx wrangler secret put "$name" >/dev/null && echo "set $name"; else echo "skip $name (not set)"; fi
+          done
       - name: Check the live site
+        if: github.event_name != 'pull_request'
         run: |
           sleep 20
-          code=$(curl -s -o /dev/null -w '%{http_code}' https://paperclip.buzzyfly.com/)
-          echo "paperclip.buzzyfly.com: $code"
-          test "$code" = "200"
+          for p in / /schools /app; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://paperclip.buzzyfly.com$p"); echo "$p: $code"; test "$code" = "200"
+          done
+          curl -s https://paperclip.buzzyfly.com/api/health; echo
+          curl -s https://paperclip.buzzyfly.com/api/health | grep -q '"selling":true' || echo "::warning::Checkout is off: set ACCESS_SECRET plus PayPal or Stripe secrets"

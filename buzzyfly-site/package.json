@@ -1,0 +1,15 @@
+{
+	"name": "buzzyfly-paperclip",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "wrangler dev",
+		"check": "tsc --noEmit && wrangler deploy --dry-run",
+		"deploy": "wrangler deploy"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "^5.20261103.1",
+		"typescript": "^5.6.0",
+		"wrangler": "^4.0.0"
+	}
+}
