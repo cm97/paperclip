@@ -12,7 +12,7 @@ The CEO sets priorities and delegates. Each specialist reports back.
 ```
 Owner
 └── CEO ─ picks ideas, writes briefs, weekly review, shuts down losers
-    ├── Market Researcher ─ proof of demand, scored opportunity reports
+    ├── Market Researcher ─ proof of demand, surveys, business discovery
     ├── Builder ─ ships each business on a *.buzzyfly.com subdomain
     └── Growth Marketer ─ free search pages, communities, partners, 1:1 email
 ```
@@ -20,13 +20,15 @@ Owner
 | Agent | Reports to | Skills |
 | --- | --- | --- |
 | CEO | Owner | paperclip, find-what-sells |
-| Market Researcher | CEO | paperclip, find-what-sells |
+| Market Researcher | CEO | paperclip, find-what-sells, customer-discovery |
 | Builder | CEO | paperclip, build-buzzyfly-app |
 | Growth Marketer | CEO | paperclip, free-growth-outreach |
 
 **Projects:** Study Plan (first 100 sales for paperclip.buzzyfly.com) and
 Venture Pipeline (find → score → build → launch).
-**Routines:** weekly portfolio review (Mon), daily free outreach (Mon–Fri).
+**Routines:** weekly portfolio review (Mon), daily free outreach (Mon–Fri), customer needs report (1st and 15th).
+
+**Every app is full-stack:** back end and database, customer support (AI chat, tickets, admin replies), surveys, installable app, Play Store wrapper and search-engine files. See `skills/build-buzzyfly-app`.
 
 ## Hard rules
 

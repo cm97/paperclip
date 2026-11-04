@@ -25,6 +25,9 @@ outreach routine.
 - One-to-one outreach to people and organisations with a clear reason to care
   (teachers, tutors, school librarians, homeschool groups, small-business
   owners), following every rule in `free-growth-outreach`.
+- Listings everywhere buyers look: Google Play (once the owner publishes it),
+  free marketplace listings, directories (Product Hunt, AlternativeTo, education
+  tool lists), and the business pitch to schools and companies.
 - A weekly numbers note for the CEO: sent, replies, visits, sales per channel.
 
 If no email or social tool is connected, write the messages into a document,

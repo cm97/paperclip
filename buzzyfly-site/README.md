@@ -8,9 +8,17 @@ A dynamic Cloudflare Worker (`buzzyfly-paperclip`) on the custom domain
 - `/paypal/return`, `/stripe/return`: verify payment, unlock the app (signed cookie + unlock link)
 - `/unlock?t=…`: open the app on another device or for a class
 - `/restore`: re-unlock with a PayPal order reference
-- `/api/health`: which payment settings are present
+- `/business`: Business tier ($299, up to 25 staff) and business needs survey
+- `/support`: AI help chat (Workers AI), FAQ, and support tickets with private reply links
+- `/survey`: "what do you need?" survey (personal and business)
+- `/admin`: owner dashboard (revenue, orders, tickets with replies, survey answers). Sign in with `ADMIN_TOKEN`
+- `/api/health`: which settings are present
+- Installable web app (manifest + offline service worker) and Play Store wrapper in `android/` (see `android/PLAY-STORE.md`)
+- `robots.txt`, `sitemap.xml` and schema.org product data for search engines
 
-No database: access passes are HMAC-signed with `ACCESS_SECRET`. App data stays in the buyer's browser.
+Back end: Cloudflare Worker + D1 database `buzzyfly-study-db` (orders, tickets,
+ticket messages, survey answers, rate limits; schema in `migrations/`).
+Access passes are HMAC-signed with `ACCESS_SECRET`. Study plans stay in the buyer's browser.
 
 ## Turn on payments
 
@@ -21,20 +29,23 @@ workflow copies them onto the Worker:
 | --- | --- |
 | `CLOUDFLARE_API_TOKEN` | Needed to deploy at all |
 | `ACCESS_SECRET` | Any long random string. Required to sell. |
+| `ADMIN_TOKEN` | Any long random string (16+ chars). Your password for `/admin`. |
+| `ANDROID_SHA256` | Play Store signing fingerprints (see `android/PLAY-STORE.md`) |
 | `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET` | Same Live REST app keys buzzyfly.com uses |
 | `STRIPE_SECRET_KEY` | Optional, for card payments |
-| `STRIPE_LINK_STUDENT`, `STRIPE_LINK_CLASSROOM` | Optional `https://buy.stripe.com/...` Payment Links ($19 / $99) |
+| `STRIPE_LINK_STUDENT`, `STRIPE_LINK_CLASSROOM`, `STRIPE_LINK_TEAM` | Optional `https://buy.stripe.com/...` Payment Links ($19 / $99 / $299) |
 
 For each Stripe Payment Link, set "After payment → redirect" to
 `https://paperclip.buzzyfly.com/stripe/return?session_id={CHECKOUT_SESSION_ID}&p=student`
-(or `p=classroom`).
+(or `p=classroom`, `p=team`).
 
-Until `ACCESS_SECRET` plus PayPal or Stripe are set, buy buttons open an email to support@buzzyfly.com.
+Until `ACCESS_SECRET` plus PayPal or Stripe are set, buy buttons open a support ticket request.
 
 ## Develop
 
     npm install
     npm run check   # typecheck + wrangler dry-run
-    npm run dev     # local, reads .dev.vars
+    npx wrangler d1 migrations apply DB --local
+    npm run dev     # local, reads .dev.vars (the AI binding needs a Cloudflare login)
 
 Marketing copy: `marketing/LAUNCH-KIT.md`.

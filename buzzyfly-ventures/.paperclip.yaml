@@ -17,3 +17,8 @@ routines:
       - kind: schedule
         cronExpression: "0 15 * * 1-5"
         timezone: UTC
+  customer-needs-report:
+    triggers:
+      - kind: schedule
+        cronExpression: "0 14 1,15 * *"
+        timezone: UTC

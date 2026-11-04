@@ -1,3 +1,10 @@
 node_modules
 .wrangler
 .dev.vars
+wrangler.test.json
+android/*.keystore
+android/*.aab
+android/*.apk
+android/app/
+android/build/
+.dev.vars*

@@ -31,6 +31,9 @@ jobs:
       - run: npm ci
       - name: Typecheck and dry-run (no credentials needed)
         run: npm run check
+      - name: Apply database migrations
+        if: github.event_name != 'pull_request'
+        run: npx wrangler d1 migrations apply DB --remote
       - name: Deploy to Cloudflare Workers
         if: github.event_name != 'pull_request'
         run: npx wrangler deploy
@@ -40,20 +43,23 @@ jobs:
         if: github.event_name != 'pull_request'
         env:
           ACCESS_SECRET: ${{ secrets.ACCESS_SECRET }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          ANDROID_SHA256: ${{ secrets.ANDROID_SHA256 }}
           PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
           PAYPAL_SECRET: ${{ secrets.PAYPAL_SECRET }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_LINK_STUDENT: ${{ secrets.STRIPE_LINK_STUDENT }}
           STRIPE_LINK_CLASSROOM: ${{ secrets.STRIPE_LINK_CLASSROOM }}
+          STRIPE_LINK_TEAM: ${{ secrets.STRIPE_LINK_TEAM }}
         run: |
-          for name in ACCESS_SECRET PAYPAL_CLIENT_ID PAYPAL_SECRET STRIPE_SECRET_KEY STRIPE_LINK_STUDENT STRIPE_LINK_CLASSROOM; do
+          for name in ACCESS_SECRET ADMIN_TOKEN ANDROID_SHA256 PAYPAL_CLIENT_ID PAYPAL_SECRET STRIPE_SECRET_KEY STRIPE_LINK_STUDENT STRIPE_LINK_CLASSROOM STRIPE_LINK_TEAM; do
             if [ -n "${!name}" ]; then printf '%s' "${!name}" | npx wrangler secret put "$name" >/dev/null && echo "set $name"; else echo "skip $name (not set)"; fi
           done
       - name: Check the live site
         if: github.event_name != 'pull_request'
         run: |
           sleep 20
-          for p in / /schools /app; do
+          for p in / /schools /business /app /support /survey /sitemap.xml; do
             code=$(curl -s -o /dev/null -w '%{http_code}' "https://paperclip.buzzyfly.com$p"); echo "$p: $code"; test "$code" = "200"
           done
           curl -s https://paperclip.buzzyfly.com/api/health; echo

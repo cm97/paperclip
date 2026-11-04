@@ -3,7 +3,7 @@ export const SUPPORT_EMAIL = "support@buzzyfly.com";
 export const REFUND_LINE = "30-day refund if you can't access the app or it isn't as described.";
 
 export interface Product {
-	id: "student" | "classroom";
+	id: "student" | "classroom" | "team";
 	name: string;
 	price: string; // USD, PayPal format
 	cents: number;
@@ -36,6 +36,19 @@ export const PRODUCTS: Record<Product["id"], Product> = {
 			"One class link: students open it and start planning",
 			"No student accounts, no emails collected",
 			"Pay once with a school card or a PayPal invoice",
+		],
+	},
+	team: {
+		id: "team",
+		name: "Business",
+		price: "299.00",
+		cents: 29900,
+		who: "For a company or training provider preparing staff for certification exams.",
+		features: [
+			"Everything in Student, for up to 25 staff",
+			"One team link to share by email or your intranet",
+			"Plan for licences and certifications: IT, finance, nursing, trades, safety",
+			"Priority support and an invoice for your records",
 		],
 	},
 };

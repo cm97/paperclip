@@ -91,7 +91,10 @@
 		else if (v === "plan") root.appendChild(planView(exam, false));
 		else if (v === "cards") root.appendChild(cardsView(exam));
 		else root.appendChild(planView(exam, true));
-		if (paid && tier === "classroom") root.appendChild(h("p", { class: "note", text: "Classroom licence active." }));
+		if (tier === "classroom" || tier === "team") root.appendChild(h("p", { class: "note", text: (tier === "team" ? "Business" : "Classroom") + " licence active." }));
+		root.appendChild(h("p", { class: "note no-print" }, [
+			"Missing something? ", h("a", { href: "/survey", text: "Tell us what you need" }), " · ", h("a", { href: "/support", text: "Get help" }),
+		]));
 	}
 
 	function tab(id, label) {

@@ -1,45 +1,23 @@
 import { BRAND, FREE_LIMITS, PRODUCTS, REFUND_LINE, SUPPORT_EMAIL, productById, type Product } from "./config";
+import { admin } from "./admin";
+import { esc, html, message, page, readCookie, type Env } from "./lib";
 import { captureOrder, createOrder, paypalConfigured } from "./paypal";
+import { chat, createTicket, supportPage, ticketPage } from "./support";
+import { saveSurvey, surveyForm, surveyPage } from "./survey";
 import { signPass, verifyPass, type Pass } from "./token";
 
-export interface Env {
-	ASSETS: Fetcher;
-	ACCESS_SECRET?: string;
-	STRIPE_SECRET_KEY?: string;
-	STRIPE_LINK_STUDENT?: string;
-	STRIPE_LINK_CLASSROOM?: string;
-	[key: string]: unknown;
-}
+export type { Env };
 
 const COOKIE = "bf_study";
-
-// ---------- helpers ----------
-const esc = (s: unknown) =>
-	String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
-
-function html(body: string, status = 200, headers: Record<string, string> = {}): Response {
-	return new Response(body, {
-		status,
-		headers: {
-			"content-type": "text/html; charset=utf-8",
-			"cache-control": "no-store",
-			"x-content-type-options": "nosniff",
-			"referrer-policy": "strict-origin-when-cross-origin",
-			"x-frame-options": "DENY",
-			...headers,
-		},
-	});
-}
-
-function readCookie(req: Request, name: string): string | null {
-	const m = (req.headers.get("cookie") || "").match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
-	return m ? decodeURIComponent(m[1]) : null;
-}
+const ORIGIN = "https://paperclip.buzzyfly.com";
+const PUBLIC_PAGES = ["/", "/app", "/schools", "/business", "/support", "/survey", "/terms"];
+const dollars = (p: Product) => p.price.replace(".00", "");
 
 const passCookie = (token: string) => `${COOKIE}=${encodeURIComponent(token)}; Path=/; Max-Age=315360000; HttpOnly; Secure; SameSite=Lax`;
 
 function stripeLink(env: Env, p: Product): string | null {
-	const link = (p.id === "student" ? env.STRIPE_LINK_STUDENT : env.STRIPE_LINK_CLASSROOM)?.trim();
+	const raw = { student: env.STRIPE_LINK_STUDENT, classroom: env.STRIPE_LINK_CLASSROOM, team: env.STRIPE_LINK_TEAM }[p.id];
+	const link = raw?.trim();
 	return link && env.STRIPE_SECRET_KEY && /^https:\/\/buy\.stripe\.com\//.test(link) ? link : null;
 }
 
@@ -47,41 +25,14 @@ function canSell(env: Env) {
 	return Boolean(env.ACCESS_SECRET) && (paypalConfigured(env) || Object.values(PRODUCTS).some((p) => stripeLink(env, p)));
 }
 
-// ---------- layout ----------
-function page(title: string, description: string, main: string, opts: { path?: string; script?: string } = {}): string {
-	return `<!doctype html>
-<html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(title)}</title>
-<meta name="description" content="${esc(description)}">
-<link rel="canonical" href="https://paperclip.buzzyfly.com${esc(opts.path ?? "/")}">
-<meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}">
-<meta property="og:type" content="website">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/styles.css?v=1">
-</head><body>
-<a class="skip" href="#main">Skip to content</a>
-<header class="top"><div class="wrap">
-<a class="brand" href="/">📚 Buzzyfly <span>Study Plan</span></a>
-<nav aria-label="Main"><a href="/app">Open the app</a><a href="/schools">For teachers</a><a href="/#pricing">Pricing</a></nav>
-</div></header>
-<main id="main">${main}</main>
-<footer><div class="wrap">
-<p>${esc(REFUND_LINE)} One-time price. No subscription.</p>
-<p>Questions? <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a> · <a href="/restore">Lost access?</a> · <a href="/terms">Terms &amp; privacy</a> · A <a href="https://www.buzzyfly.com/">Buzzyfly</a> app</p>
-</div></footer>
-${opts.script ? `<script src="${opts.script}" defer></script>` : ""}
-</body></html>`;
-}
-
 function buyButtons(env: Env, p: Product, primary: boolean): string {
 	if (!canSell(env)) {
-		return `<a class="btn ${primary ? "primary" : ""}" href="mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`${BRAND} – ${p.name} ($${p.price})`)}">Email us to buy – $${p.price.replace(".00", "")}</a>`;
+		return `<a class="btn ${primary ? "primary" : ""}" href="/support#ticket">Request ${esc(p.name)} – $${dollars(p)}</a>`;
 	}
 	const out: string[] = [];
-	if (paypalConfigured(env)) out.push(`<a class="btn ${primary ? "primary" : ""}" href="/buy/${p.id}">Buy ${esc(p.name)} – $${p.price.replace(".00", "")}</a>`);
+	if (paypalConfigured(env)) out.push(`<a class="btn ${primary ? "primary" : ""}" href="/buy/${p.id}">Buy ${esc(p.name)} – $${dollars(p)}</a>`);
 	const s = stripeLink(env, p);
-	if (s) out.push(`<a class="btn ${out.length ? "" : primary ? "primary" : ""}" href="${esc(s)}">${out.length ? "Pay by card" : `Buy ${esc(p.name)} – $${p.price.replace(".00", "")}`}</a>`);
+	if (s) out.push(`<a class="btn ${out.length ? "" : primary ? "primary" : ""}" href="${esc(s)}">${out.length ? "Pay by card" : `Buy ${esc(p.name)} – $${dollars(p)}`}</a>`);
 	return out.join("");
 }
 
@@ -89,12 +40,28 @@ function priceCard(env: Env, p: Product, featured: boolean): string {
 	return `<div class="card price ${featured ? "featured" : ""}">
 ${featured ? `<p class="badge">Most popular</p>` : ""}
 <h3>${esc(p.name)}</h3>
-<p class="amount">$${p.price.replace(".00", "")} <small>one time</small></p>
+<p class="amount">$${dollars(p)} <small>one time</small></p>
 <p class="muted">${esc(p.who)}</p>
 <ul class="fit">${p.features.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>
 <div class="ctas">${buyButtons(env, p, featured)}</div>
 <p class="note">${esc(REFUND_LINE)}</p>
 </div>`;
+}
+
+function jsonLd(): string {
+	const data = {
+		"@context": "https://schema.org",
+		"@type": "SoftwareApplication",
+		name: BRAND,
+		applicationCategory: "EducationalApplication",
+		operatingSystem: "Web, Android, iOS (browser)",
+		url: ORIGIN,
+		description: "Day-by-day exam study plans with spaced review and flashcards.",
+		offers: [{ "@type": "Offer", price: "0", priceCurrency: "USD", name: "Free" }].concat(
+			Object.values(PRODUCTS).map((p) => ({ "@type": "Offer", price: p.price, priceCurrency: "USD", name: p.name })),
+		),
+	};
+	return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, "\\u003c")}</script>`;
 }
 
 // ---------- pages ----------
@@ -103,11 +70,11 @@ function home(env: Env): string {
 		"Buzzyfly Study Plan – a day-by-day exam plan in two minutes",
 		"Type your exam date and topics. Get a day-by-day study plan with spaced review and flashcards. Free for your first exam.",
 		`<section class="hero"><div class="wrap">
-<p class="eyebrow">For students, parents and teachers</p>
+<p class="eyebrow">For students, parents, teachers and teams</p>
 <h1>Know exactly what to study tonight.</h1>
 <p class="lede">Type your exam date and your topics. Get a day-by-day plan with review sessions spaced out so the material sticks. No more cramming the night before.</p>
 <div class="ctas"><a class="btn primary" href="/app">Make my free plan</a><a class="btn" href="#pricing">See pricing</a></div>
-<p class="note">Free for your first exam. No sign-up. Works on any phone or laptop.</p>
+<p class="note">Free for your first exam. No sign-up. Works on any phone or laptop, and installs like an app.</p>
 </div></section>
 
 <section class="band"><div class="wrap">
@@ -129,7 +96,7 @@ function home(env: Env): string {
 
 <section class="band" id="pricing"><div class="wrap">
 <h2>One price. Yours to keep.</h2>
-<div class="grid">${priceCard(env, PRODUCTS.student, true)}${priceCard(env, PRODUCTS.classroom, false)}</div>
+<div class="grid">${priceCard(env, PRODUCTS.student, true)}${priceCard(env, PRODUCTS.classroom, false)}${priceCard(env, PRODUCTS.team, false)}</div>
 <p class="note">Free version: ${FREE_LIMITS.exams} exam and up to ${FREE_LIMITS.cards} flashcards. Upgrading keeps everything you've made.</p>
 </div></section>
 
@@ -138,9 +105,10 @@ function home(env: Env): string {
 <details><summary>Is this a subscription?</summary><p>No. You pay once and keep the app.</p></details>
 <details><summary>How do I get in after paying?</summary><p>The app unlocks on the thank-you page right after checkout. Save the link it shows you to open it on other devices.</p></details>
 <details><summary>Where is my data kept?</summary><p>In your own browser, on your device. We don't collect your plans, your cards or your name.</p></details>
-<details><summary>Which subjects does it work for?</summary><p>Any subject with an exam date and a list of topics: school tests, finals, SAT/ACT, GCSE, A-levels, licensing exams.</p></details>
-<details><summary>What if it isn't for me?</summary><p>${esc(REFUND_LINE)} No change-of-mind refunds once you've had access. Email ${SUPPORT_EMAIL}.</p></details>
+<details><summary>Which subjects does it work for?</summary><p>Any subject with an exam date and a list of topics: school tests, finals, SAT/ACT, GCSE, A-levels, professional licences and certifications.</p></details>
+<details><summary>What if I need help?</summary><p>Use <a href="/support">Help &amp; support</a> for instant answers or a ticket answered by a person. ${esc(REFUND_LINE)}</p></details>
 </div></section>`,
+		{ head: jsonLd() },
 	);
 }
 
@@ -157,7 +125,7 @@ function schools(env: Env): string {
 <section class="band"><div class="wrap grid">
 <div class="card"><h3>Privacy-friendly by design</h3><p class="muted">Plans stay in each student's browser. We collect no student names or emails, and there are no ads or trackers.</p></div>
 <div class="card"><h3>Built on how memory works</h3><p class="muted">Topics come back after 1, 3 and 7 days, which is spaced practice. Flashcards resurface the ones a student gets wrong.</p></div>
-<div class="card"><h3>Easy to buy</h3><p class="muted">One-time $99 per teacher. Pay by card or PayPal. Need an invoice or a purchase order? Email ${SUPPORT_EMAIL}.</p></div>
+<div class="card"><h3>Easy to buy</h3><p class="muted">One-time $99 per teacher. Pay by card or PayPal. Need an invoice or purchase order? <a href="/support#ticket">Ask support</a>.</p></div>
 </div></section>
 <section><div class="wrap">
 <h2>How to roll it out</h2>
@@ -167,8 +135,33 @@ function schools(env: Env): string {
 <li><strong>Students open it</strong> and make their plan in two minutes.</li>
 </ol>
 <p class="note">${esc(REFUND_LINE)}</p>
-</div></section>`,
+</div></section>
+<section class="band" id="survey"><div class="wrap narrow"><h2>What would help your students most?</h2>${surveyForm("business")}</div></section>`,
 		{ path: "/schools" },
+	);
+}
+
+function business(env: Env): string {
+	return page(
+		"Buzzyfly Study Plan for businesses – certification study plans for your team",
+		"Help staff pass licence and certification exams. Day-by-day plans with spaced review for up to 25 people. $299 one-time.",
+		`<section class="hero"><div class="wrap">
+<p class="eyebrow">For companies and training providers</p>
+<h1>Get your team through their certification exams.</h1>
+<p class="lede">Staff studying for IT, finance, nursing, trades or safety exams get a day-by-day plan that fits around work, with spaced review and flashcards. One link for up to 25 people.</p>
+<div class="ctas">${buyButtons(env, PRODUCTS.team, true)}<a class="btn" href="#survey">Tell us what your team needs</a></div>
+</div></section>
+<section class="band"><div class="wrap grid">
+<div class="card"><h3>Fits a working week</h3><p class="muted">Each person sets their own minutes per day. The plan spreads topics out and saves the final days for mixed review.</p></div>
+<div class="card"><h3>No IT project</h3><p class="muted">Works in any browser and installs like an app. No accounts, no integrations, no staff data collected.</p></div>
+<div class="card"><h3>Simple to buy</h3><p class="muted">$299 once, for up to 25 staff. Pay by card or PayPal. Invoices and larger teams: <a href="/support#ticket">ask support</a>.</p></div>
+</div></section>
+<section id="survey"><div class="wrap narrow">
+<h2>What does your business need?</h2>
+<p class="lede">We build tools businesses ask for. Tell us what your people struggle with, and we'll tell you if we can build it.</p>
+${surveyForm("business")}
+</div></section>`,
+		{ path: "/business" },
 	);
 }
 
@@ -181,21 +174,30 @@ function appPage(pass: Pass | null): string {
 <noscript><p>This app needs JavaScript turned on.</p></noscript>
 <p class="muted">Loading your plans…</p>
 </div>`,
-		{ path: "/app", script: "/app.js?v=1" },
+		{ path: "/app", script: "/app.js?v=2" },
 	);
 }
 
-function message(title: string, body: string, status = 200): Response {
-	return html(page(title, title, `<section class="hero"><div class="wrap narrow"><h1>${esc(title)}</h1>${body}</div></section>`), status);
+async function recordOrder(env: Env, o: { ref: string; provider: string; product: Product; amount: string; currency: string; email: string | null; source: string | null }) {
+	if (!env.DB) return;
+	try {
+		await env.DB.prepare("INSERT OR IGNORE INTO orders (ref, provider, product, amount, currency, email, source) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)")
+			.bind(o.ref, o.provider, o.product.id, o.amount, o.currency, o.email, o.source)
+			.run();
+	} catch (e) {
+		console.error("recordOrder", e);
+	}
 }
 
 async function thankYou(env: Env, product: Product, ref: string): Promise<Response> {
 	const token = await signPass(env.ACCESS_SECRET!, { p: product.id, o: ref, t: Date.now() });
-	const link = `https://paperclip.buzzyfly.com/unlock?t=${encodeURIComponent(token)}`;
-	const classNote =
+	const link = `${ORIGIN}/unlock?t=${encodeURIComponent(token)}`;
+	const label =
 		product.id === "classroom"
-			? `<p><strong>Your class link</strong> (post it for your students):</p>`
-			: `<p><strong>Your personal unlock link.</strong> Save it to open the app on another phone or laptop:</p>`;
+			? "Your class link (post it for your students):"
+			: product.id === "team"
+				? "Your team link (share it with up to 25 staff):"
+				: "Your personal unlock link. Save it to open the app on another phone or laptop:";
 	return html(
 		page(
 			"You're in – Buzzyfly Study Plan",
@@ -204,26 +206,37 @@ async function thankYou(env: Env, product: Product, ref: string): Promise<Respon
 <p class="eyebrow">Payment received</p>
 <h1>You're in. The full app is unlocked.</h1>
 <div class="ctas"><a class="btn primary" href="/app">Open my study planner</a></div>
-${classNote}
+<p><strong>${label}</strong></p>
 <pre><code id="link">${esc(link)}</code></pre>
 <button class="copy" type="button" data-copy="link">Copy link</button>
-<p class="note">Your order reference: ${esc(ref)}. Lost the link? Use <a href="/restore">Lost access</a> with this reference. ${esc(REFUND_LINE)}</p>
+<p class="note">Your order reference: ${esc(ref)}. Lost the link? Use <a href="/restore">Lost access</a> or <a href="/support">support</a>. ${esc(REFUND_LINE)}</p>
 </div></section>`,
-			{ script: "/copy.js?v=1" },
+			{ script: "/copy.js?v=1", head: `<meta name="robots" content="noindex">` },
 		),
 		200,
 		{ "set-cookie": passCookie(token) },
 	);
 }
 
-// ---------- Stripe ----------
-async function stripeSession(env: Env, id: string): Promise<{ paid: boolean; cents: number; currency: string } | null> {
+async function stripeSession(env: Env, id: string) {
 	const res = await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(id)}`, {
 		headers: { authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
 	});
 	if (!res.ok) return null;
-	const s = (await res.json()) as { payment_status?: string; amount_total?: number; currency?: string };
-	return { paid: s.payment_status === "paid", cents: s.amount_total ?? 0, currency: s.currency ?? "" };
+	const s = (await res.json()) as { payment_status?: string; amount_total?: number; currency?: string; customer_details?: { email?: string } };
+	return { paid: s.payment_status === "paid", cents: s.amount_total ?? 0, currency: s.currency ?? "", email: s.customer_details?.email ?? null };
+}
+
+function terms(): Response {
+	return message(
+		"Terms & privacy",
+		`<p>${BRAND} is a browser app sold by Buzzyfly. You pay once. There is no subscription.</p>
+<p><strong>Refunds.</strong> 30-day refund if you can't get into the app or it isn't what the listing described. No change-of-mind refunds once you've had access.</p>
+<p><strong>Your data.</strong> Plans and flashcards are stored in your browser on your device. We don't see them. Payments are handled by PayPal or Stripe. We keep the order reference, product, amount and the email the payment provider gives us so we can restore access and handle refunds. Support tickets and survey answers are stored so we can reply and improve the app. We don't sell personal data and we don't use ad trackers.</p>
+<p><strong>Licences.</strong> Classroom covers one teacher's classes. Business covers up to 25 staff at one organisation.</p>
+<p><strong>Limits on our liability.</strong> The app helps you plan. It does not promise any grade, pass or result. Our total liability is limited to what you paid.</p>
+<p>Contact: <a href="/support">Help &amp; support</a> or <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a></p>`,
+	);
 }
 
 // ---------- router ----------
@@ -231,19 +244,55 @@ export default {
 	async fetch(req: Request, env: Env): Promise<Response> {
 		const url = new URL(req.url);
 		const path = url.pathname.replace(/\/+$/, "") || "/";
-		if (req.method !== "GET" && req.method !== "HEAD") return new Response("Method not allowed", { status: 405 });
+		const method = req.method;
 
 		try {
+			if (method === "POST") {
+				if (path === "/support/tickets") return createTicket(req, env);
+				if (path === "/api/support/chat") return chat(req, env);
+				if (path === "/survey") return saveSurvey(req, env);
+				const t = path.match(/^\/support\/ticket\/(\d+)$/);
+				if (t) return ticketPage(req, env, +t[1]);
+				if (path.startsWith("/admin")) return admin(req, env, path);
+				return new Response("Method not allowed", { status: 405 });
+			}
+			if (method !== "GET" && method !== "HEAD") return new Response("Method not allowed", { status: 405 });
+
 			if (path === "/") return html(home(env));
 			if (path === "/schools") return html(schools(env));
+			if (path === "/business") return html(business(env));
 			if (path === "/app") return html(appPage(await verifyPass(env.ACCESS_SECRET, readCookie(req, COOKIE))));
+			if (path === "/support") return supportPage();
+			if (path === "/survey") return surveyPage();
+			if (path === "/terms") return terms();
+			const t = path.match(/^\/support\/ticket\/(\d+)$/);
+			if (t) return ticketPage(req, env, +t[1]);
+			if (path.startsWith("/admin")) return admin(req, env, path);
+
+			if (path === "/robots.txt") return new Response(`User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /support/ticket/\nSitemap: ${ORIGIN}/sitemap.xml\n`, { headers: { "content-type": "text/plain" } });
+			if (path === "/sitemap.xml") {
+				const urls = PUBLIC_PAGES.map((p) => `<url><loc>${ORIGIN}${p === "/" ? "/" : p}</loc></url>`).join("");
+				return new Response(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`, { headers: { "content-type": "application/xml" } });
+			}
+			// Digital Asset Links: lets the Play Store app (Trusted Web Activity) open this site full-screen.
+			if (path === "/.well-known/assetlinks.json") {
+				const fps = (env.ANDROID_SHA256 || "").split(",").map((s) => s.trim()).filter(Boolean);
+				const body = fps.length
+					? [{ relation: ["delegate_permission/common.handle_all_urls"], target: { namespace: "android_app", package_name: env.ANDROID_PACKAGE || "com.buzzyfly.studyplan", sha256_cert_fingerprints: fps } }]
+					: [];
+				return Response.json(body, { headers: { "cache-control": "public, max-age=3600" } });
+			}
 
 			if (path === "/api/health") {
 				return Response.json({
 					ok: true,
+					db: Boolean(env.DB),
+					ai: Boolean(env.AI),
+					admin: Boolean(env.ADMIN_TOKEN && env.ADMIN_TOKEN.length >= 16),
 					accessSecret: Boolean(env.ACCESS_SECRET),
 					paypal: paypalConfigured(env),
 					stripe: Object.fromEntries(Object.values(PRODUCTS).map((p) => [p.id, Boolean(stripeLink(env, p))])),
+					android: Boolean(env.ANDROID_SHA256),
 					selling: canSell(env),
 				});
 			}
@@ -260,19 +309,21 @@ export default {
 					description: `${BRAND} – ${p.name}`,
 					returnUrl: `${url.origin}/paypal/return`,
 					cancelUrl: `${url.origin}/#pricing`,
-					source: url.searchParams.get("src")?.slice(0, 60) || null,
+					source: url.searchParams.get("src")?.replace(/[^\w.-]/g, "").slice(0, 60) || null,
 				});
 				return Response.redirect(order.approveUrl, 302);
 			}
 
 			if (path === "/paypal/return" || path === "/restore/paypal") {
-				const orderId = (url.searchParams.get("token") || url.searchParams.get("order") || "").trim();
+				const orderId = (url.searchParams.get("token") || url.searchParams.get("order") || "").trim().toUpperCase();
 				if (!/^[A-Z0-9]{8,40}$/.test(orderId)) return message("We couldn't find that order", `<p>Check the order reference and try <a href="/restore">Lost access</a> again.</p>`, 400);
+				if (!env.ACCESS_SECRET || !paypalConfigured(env)) return message("Checkout is offline", `<p>Please <a href="/support#ticket">open a ticket</a>.</p>`, 503);
 				const c = await captureOrder(env, orderId);
 				const p = productById(c.customId);
 				if (!c.completed || !p || c.amount !== p.price || c.currency !== "USD") {
-					return message("Payment not completed", `<p>PayPal hasn't confirmed this payment. If you were charged, email <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a> with reference ${esc(orderId)}.</p>`, 402);
+					return message("Payment not completed", `<p>PayPal hasn't confirmed this payment. If you were charged, <a href="/support#ticket">open a ticket</a> with reference ${esc(orderId)}.</p>`, 402);
 				}
+				await recordOrder(env, { ref: orderId, provider: "paypal", product: p, amount: c.amount!, currency: c.currency!, email: c.payerEmail, source: c.source });
 				return thankYou(env, p, orderId);
 			}
 
@@ -280,20 +331,21 @@ export default {
 				const id = url.searchParams.get("session_id") || "";
 				const p = productById(url.searchParams.get("p"));
 				if (!p || !/^cs_[A-Za-z0-9_]{10,200}$/.test(id) || !env.STRIPE_SECRET_KEY || !env.ACCESS_SECRET) {
-					return message("We couldn't confirm that payment", `<p>Email <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a> and we'll sort it out.</p>`, 400);
+					return message("We couldn't confirm that payment", `<p><a href="/support#ticket">Open a ticket</a> and we'll sort it out.</p>`, 400);
 				}
 				const s = await stripeSession(env, id);
 				if (!s || !s.paid || s.cents !== p.cents || s.currency !== "usd") {
-					return message("Payment not completed", `<p>Stripe hasn't confirmed this payment. If you were charged, email <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a>.</p>`, 402);
+					return message("Payment not completed", `<p>Stripe hasn't confirmed this payment. If you were charged, <a href="/support#ticket">open a ticket</a>.</p>`, 402);
 				}
+				await recordOrder(env, { ref: id, provider: "stripe", product: p, amount: p.price, currency: "USD", email: s.email, source: null });
 				return thankYou(env, p, id);
 			}
 
 			if (path === "/unlock") {
-				const t = url.searchParams.get("t");
-				const pass = await verifyPass(env.ACCESS_SECRET, t);
-				if (!pass) return message("That unlock link isn't valid", `<p>Try <a href="/restore">Lost access</a> or email <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a>.</p>`, 400);
-				return new Response(null, { status: 302, headers: { location: "/app", "set-cookie": passCookie(t!) } });
+				const tk = url.searchParams.get("t");
+				const pass = await verifyPass(env.ACCESS_SECRET, tk);
+				if (!pass) return message("That unlock link isn't valid", `<p>Try <a href="/restore">Lost access</a> or <a href="/support">support</a>.</p>`, 400);
+				return new Response(null, { status: 302, headers: { location: "/app", "set-cookie": passCookie(tk!) } });
 			}
 
 			if (path === "/restore") {
@@ -301,29 +353,16 @@ export default {
 					"Lost access?",
 					`<p>Paid with PayPal? Enter the order reference shown on your thank-you page.</p>
 <form action="/restore/paypal" method="get" class="form"><label for="order">PayPal order reference</label><input id="order" name="order" required pattern="[A-Za-z0-9]{8,40}" autocomplete="off"><button class="btn primary" type="submit">Unlock my app</button></form>
-<p>Paid by card, or still stuck? Email <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a> with the email you paid with.</p>`,
+<p>Paid by card, or can't find the reference? <a href="/support#ticket">Open a support ticket</a> with the email you paid with.</p>`,
 				);
 			}
 
-			if (path === "/terms") {
-				return message(
-					"Terms & privacy",
-					`<p>${BRAND} is a browser app sold by Buzzyfly. You pay once. There is no subscription.</p>
-<p><strong>Refunds.</strong> 30-day refund if you can't get into the app or it isn't what the listing described. No change-of-mind refunds once you've had access.</p>
-<p><strong>Your data.</strong> Plans and flashcards are stored in your browser on your device. We don't see them. Payments are handled by PayPal or Stripe. We keep the order reference so we can restore access.</p>
-<p><strong>Classroom licence.</strong> One licence covers one teacher's classes.</p>
-<p><strong>Limits on our liability.</strong> The app helps you plan. It does not promise any grade or result. Our total liability is limited to what you paid.</p>
-<p>Contact: <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a></p>`,
-				);
-			}
-
-			// Static files (app.js, styles.css, favicon)
 			const asset = await env.ASSETS.fetch(req);
 			if (asset.status !== 404) return asset;
 			return message("That page isn't here", `<p><a href="/">Back to the home page</a></p>`, 404);
 		} catch (err) {
 			console.error(err);
-			return message("Something went wrong", `<p>Please try again. If you paid and this keeps happening, email <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a>.</p>`, 500);
+			return message("Something went wrong", `<p>Please try again. If you paid and this keeps happening, <a href="/support#ticket">open a ticket</a> or email <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a>.</p>`, 500);
 		}
 	},
 } satisfies ExportedHandler<Env>;
