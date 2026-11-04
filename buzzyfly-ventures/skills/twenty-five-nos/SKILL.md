@@ -43,6 +43,12 @@ Write a short note to the Head of Growth and the CEO:
 - The one change for the next round, and why.
 - Whether to keep this channel or audience.
 
+**Check the product first.** Many no's mean the product has a gap: something
+missing, broken or that looks untrustworthy. Before changing the pitch, ask:
+did they try it? Did checkout, unlock and support work? Did anything feel
+unclear or shady? Send product gaps to the Builder as bugs, fixed before the
+next round.
+
 Common fixes: "too expensive" → lead with the free tier or a smaller tier.
 "Already use X" → show the one thing we do better, or pick a different audience.
 "Not now" → time it before exams or budget season. "Not my decision" →

@@ -33,7 +33,18 @@ Copy the full-stack pattern in `buzzyfly-site/` of the cm97/paperclip repo
     service worker), a Play Store wrapper (Trusted Web Activity in `android/`
     with `/.well-known/assetlinks.json`), `robots.txt`, `sitemap.xml` and
     schema.org product data. List it on free marketplaces after launch.
-11. **Terms & privacy page**, `support@buzzyfly.com` as contact, `/api/health`.
+11. **Legal and trust pages**: `/about`, `/terms` (with limits on liability
+    and a security section), `/privacy` (what's collected, cookies, children,
+    rights), `/refunds`, `/accessibility`, `/.well-known/security.txt`.
+    `support@buzzyfly.com` as contact, `/api/health`.
+11a. **Emails** through the Cloudflare Email Service binding: receipt with the
+    unlock link, ticket received, support replied, owner alerts.
+11b. **Security**: CSP, HSTS, signed passes, refunds revoke access, rate limits,
+    admin lockout, audit log, privacy erase in admin.
+11c. **Android app**: a Trusted Web Activity in `android/` plus a GitHub
+    workflow that builds the Play bundle.
+11d. **Automated end-to-end tests** (`npm test`) covering every purchase,
+    unlock, refund, ticket, admin and security path, run before every deploy.
 12. **Deploy workflow** that typechecks and dry-runs on PRs, deploys and syncs
    secrets on merge, then checks the live URLs return 200.
 

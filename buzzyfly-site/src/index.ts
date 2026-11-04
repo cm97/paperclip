@@ -1,5 +1,7 @@
 import { BRAND, FREE_LIMITS, PRODUCTS, REFUND_LINE, SUPPORT_EMAIL, productById, type Product } from "./config";
 import { admin } from "./admin";
+import { sendReceipt } from "./email";
+import { legalPage } from "./legal";
 import { esc, html, message, page, readCookie, type Env } from "./lib";
 import { captureOrder, createOrder, paypalConfigured } from "./paypal";
 import { chat, createTicket, supportPage, ticketPage } from "./support";
@@ -10,7 +12,7 @@ export type { Env };
 
 const COOKIE = "bf_study";
 const ORIGIN = "https://paperclip.buzzyfly.com";
-const PUBLIC_PAGES = ["/", "/app", "/schools", "/business", "/support", "/survey", "/terms"];
+const PUBLIC_PAGES = ["/", "/app", "/schools", "/business", "/support", "/survey", "/about", "/terms", "/privacy", "/refunds", "/accessibility"];
 const dollars = (p: Product) => p.price.replace(".00", "");
 
 const passCookie = (token: string) => `${COOKIE}=${encodeURIComponent(token)}; Path=/; Max-Age=315360000; HttpOnly; Secure; SameSite=Lax`;
@@ -178,20 +180,41 @@ function appPage(pass: Pass | null): string {
 	);
 }
 
-async function recordOrder(env: Env, o: { ref: string; provider: string; product: Product; amount: string; currency: string; email: string | null; source: string | null }) {
-	if (!env.DB) return;
+async function isRefunded(env: Env, ref: string): Promise<boolean> {
+	if (!env.DB) return false;
 	try {
-		await env.DB.prepare("INSERT OR IGNORE INTO orders (ref, provider, product, amount, currency, email, source) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)")
-			.bind(o.ref, o.provider, o.product.id, o.amount, o.currency, o.email, o.source)
-			.run();
-	} catch (e) {
-		console.error("recordOrder", e);
+		const row = await env.DB.prepare("SELECT status FROM orders WHERE ref = ?1").bind(ref).first<{ status: string }>();
+		return row?.status === "refunded";
+	} catch {
+		return false; // database hiccup: never lock out a paying customer
 	}
 }
 
-async function thankYou(env: Env, product: Product, ref: string): Promise<Response> {
+/** A valid signature AND an order that hasn't been refunded. */
+async function activePass(env: Env, token: string | null): Promise<Pass | null> {
+	const pass = await verifyPass(env.ACCESS_SECRET, token);
+	if (!pass) return null;
+	return (await isRefunded(env, pass.o)) ? null : pass;
+}
+
+/** Returns true the first time an order is recorded (so the receipt is emailed once). */
+async function recordOrder(env: Env, o: { ref: string; provider: string; product: Product; amount: string; currency: string; email: string | null; source: string | null }): Promise<boolean> {
+	if (!env.DB) return false;
+	try {
+		const r = await env.DB.prepare("INSERT OR IGNORE INTO orders (ref, provider, product, amount, currency, email, source) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)")
+			.bind(o.ref, o.provider, o.product.id, o.amount, o.currency, o.email, o.source)
+			.run();
+		return (r.meta?.changes ?? 0) > 0;
+	} catch (e) {
+		console.error("recordOrder", e);
+		return false;
+	}
+}
+
+async function thankYou(env: Env, product: Product, ref: string, email: string | null, isNew: boolean): Promise<Response> {
 	const token = await signPass(env.ACCESS_SECRET!, { p: product.id, o: ref, t: Date.now() });
 	const link = `${ORIGIN}/unlock?t=${encodeURIComponent(token)}`;
+	const emailed = isNew ? await sendReceipt(env, email, product, ref, link) : false;
 	const label =
 		product.id === "classroom"
 			? "Your class link (post it for your students):"
@@ -209,7 +232,7 @@ async function thankYou(env: Env, product: Product, ref: string): Promise<Respon
 <p><strong>${label}</strong></p>
 <pre><code id="link">${esc(link)}</code></pre>
 <button class="copy" type="button" data-copy="link">Copy link</button>
-<p class="note">Your order reference: ${esc(ref)}. Lost the link? Use <a href="/restore">Lost access</a> or <a href="/support">support</a>. ${esc(REFUND_LINE)}</p>
+<p class="note">${emailed ? `We've also emailed this link to ${esc(email)} as a backup. ` : ""}Your order reference: ${esc(ref)}. Lost the link? Use <a href="/restore">Lost access</a> or <a href="/support">support</a>. ${esc(REFUND_LINE)}</p>
 </div></section>`,
 			{ script: "/copy.js?v=1", head: `<meta name="robots" content="noindex">` },
 		),
@@ -225,18 +248,6 @@ async function stripeSession(env: Env, id: string) {
 	if (!res.ok) return null;
 	const s = (await res.json()) as { payment_status?: string; amount_total?: number; currency?: string; customer_details?: { email?: string } };
 	return { paid: s.payment_status === "paid", cents: s.amount_total ?? 0, currency: s.currency ?? "", email: s.customer_details?.email ?? null };
-}
-
-function terms(): Response {
-	return message(
-		"Terms & privacy",
-		`<p>${BRAND} is a browser app sold by Buzzyfly. You pay once. There is no subscription.</p>
-<p><strong>Refunds.</strong> 30-day refund if you can't get into the app or it isn't what the listing described. No change-of-mind refunds once you've had access.</p>
-<p><strong>Your data.</strong> Plans and flashcards are stored in your browser on your device. We don't see them. Payments are handled by PayPal or Stripe. We keep the order reference, product, amount and the email the payment provider gives us so we can restore access and handle refunds. Support tickets and survey answers are stored so we can reply and improve the app. We don't sell personal data and we don't use ad trackers.</p>
-<p><strong>Licences.</strong> Classroom covers one teacher's classes. Business covers up to 25 staff at one organisation.</p>
-<p><strong>Limits on our liability.</strong> The app helps you plan. It does not promise any grade, pass or result. Our total liability is limited to what you paid.</p>
-<p>Contact: <a href="/support">Help &amp; support</a> or <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a></p>`,
-	);
 }
 
 // ---------- router ----------
@@ -261,10 +272,14 @@ export default {
 			if (path === "/") return html(home(env));
 			if (path === "/schools") return html(schools(env));
 			if (path === "/business") return html(business(env));
-			if (path === "/app") return html(appPage(await verifyPass(env.ACCESS_SECRET, readCookie(req, COOKIE))));
+			if (path === "/app") return html(appPage(await activePass(env, readCookie(req, COOKIE))));
 			if (path === "/support") return supportPage();
 			if (path === "/survey") return surveyPage();
-			if (path === "/terms") return terms();
+			const legal = legalPage(path);
+			if (legal) return legal;
+			if (path === "/.well-known/security.txt") {
+				return new Response(`Contact: mailto:${SUPPORT_EMAIL}\nExpires: 2027-12-31T23:59:59Z\nPreferred-Languages: en\nCanonical: ${ORIGIN}/.well-known/security.txt\nPolicy: ${ORIGIN}/terms#security\n`, { headers: { "content-type": "text/plain" } });
+			}
 			const t = path.match(/^\/support\/ticket\/(\d+)$/);
 			if (t) return ticketPage(req, env, +t[1]);
 			if (path.startsWith("/admin")) return admin(req, env, path);
@@ -323,8 +338,11 @@ export default {
 				if (!c.completed || !p || c.amount !== p.price || c.currency !== "USD") {
 					return message("Payment not completed", `<p>PayPal hasn't confirmed this payment. If you were charged, <a href="/support#ticket">open a ticket</a> with reference ${esc(orderId)}.</p>`, 402);
 				}
-				await recordOrder(env, { ref: orderId, provider: "paypal", product: p, amount: c.amount!, currency: c.currency!, email: c.payerEmail, source: c.source });
-				return thankYou(env, p, orderId);
+				const isNew = await recordOrder(env, { ref: orderId, provider: "paypal", product: p, amount: c.amount!, currency: c.currency!, email: c.payerEmail, source: c.source });
+				if (!isNew && (await isRefunded(env, orderId))) {
+					return message("This order was refunded", `<p>Access for order ${esc(orderId)} ended when it was refunded. Questions? <a href="/support#ticket">Open a ticket</a>.</p>`, 403);
+				}
+				return thankYou(env, p, orderId, c.payerEmail, isNew);
 			}
 
 			if (path === "/stripe/return") {
@@ -337,14 +355,17 @@ export default {
 				if (!s || !s.paid || s.cents !== p.cents || s.currency !== "usd") {
 					return message("Payment not completed", `<p>Stripe hasn't confirmed this payment. If you were charged, <a href="/support#ticket">open a ticket</a>.</p>`, 402);
 				}
-				await recordOrder(env, { ref: id, provider: "stripe", product: p, amount: p.price, currency: "USD", email: s.email, source: null });
-				return thankYou(env, p, id);
+				const isNew = await recordOrder(env, { ref: id, provider: "stripe", product: p, amount: p.price, currency: "USD", email: s.email, source: null });
+				if (!isNew && (await isRefunded(env, id))) {
+					return message("This order was refunded", `<p>Access for this order ended when it was refunded. Questions? <a href="/support#ticket">Open a ticket</a>.</p>`, 403);
+				}
+				return thankYou(env, p, id, s.email, isNew);
 			}
 
 			if (path === "/unlock") {
 				const tk = url.searchParams.get("t");
-				const pass = await verifyPass(env.ACCESS_SECRET, tk);
-				if (!pass) return message("That unlock link isn't valid", `<p>Try <a href="/restore">Lost access</a> or <a href="/support">support</a>.</p>`, 400);
+				const pass = await activePass(env, tk);
+				if (!pass) return message("That unlock link isn't valid (or the order was refunded)", `<p>Try <a href="/restore">Lost access</a> or <a href="/support">support</a>.</p>`, 400);
 				return new Response(null, { status: 302, headers: { location: "/app", "set-cookie": passCookie(tk!) } });
 			}
 

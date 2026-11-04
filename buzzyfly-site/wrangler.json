@@ -3,7 +3,9 @@
 	"name": "buzzyfly-paperclip",
 	"main": "./src/index.ts",
 	"compatibility_date": "2026-09-01",
-	"observability": { "enabled": true },
+	"observability": {
+		"enabled": true
+	},
 	"assets": {
 		"directory": "./public",
 		"binding": "ASSETS"
@@ -16,9 +18,25 @@
 			"migrations_dir": "migrations"
 		}
 	],
-	"ai": { "binding": "AI" },
-	"vars": { "ANDROID_PACKAGE": "com.buzzyfly.studyplan" },
+	"ai": {
+		"binding": "AI"
+	},
+	"vars": {
+		"ANDROID_PACKAGE": "com.buzzyfly.studyplan"
+	},
 	"routes": [
-		{ "pattern": "paperclip.buzzyfly.com", "custom_domain": true }
+		{
+			"pattern": "paperclip.buzzyfly.com",
+			"custom_domain": true
+		}
+	],
+	"send_email": [
+		{
+			"name": "EMAIL",
+			"allowed_sender_addresses": [
+				"orders@buzzyfly.com",
+				"support@buzzyfly.com"
+			]
+		}
 	]
 }

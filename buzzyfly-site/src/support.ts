@@ -1,4 +1,5 @@
 import { BRAND, FREE_LIMITS, PRODUCTS, REFUND_LINE, SUPPORT_EMAIL } from "./config";
+import { notifyOwner, sendTicketReceived } from "./email";
 import { clean, esc, html, message, page, randomId, rateLimited, sameOrigin, validEmail, type Env } from "./lib";
 
 const TOPICS = ["Can't get into the app", "Payment or receipt", "Refund request", "How do I…?", "Classroom or business licence", "Bug or problem", "Something else"];
@@ -16,7 +17,7 @@ const FAQ: [string, string][] = [
 
 function systemPrompt(): string {
 	const prices = Object.values(PRODUCTS).map((p) => `${p.name} $${p.price} one-time (${p.who})`).join("; ");
-	return `You are the friendly support assistant for ${BRAND}, a browser study-planner app by Buzzyfly.
+	return `You are Bee, the AI support helper for ${BRAND}. Say you are an AI if asked, a browser study-planner app by Buzzyfly.
 Answer in 1-4 short sentences in plain English. Only use these facts:
 - What it does: you enter an exam date, topics and minutes per day, and it builds a day-by-day plan with reviews 1, 3 and 7 days after learning each topic, plus flashcards that resurface missed cards.
 - Prices: ${prices}. No subscriptions.
@@ -38,11 +39,11 @@ export function supportPage(): Response {
 			`<section class="hero"><div class="wrap narrow">
 <p class="eyebrow">Help &amp; support</p>
 <h1>How can we help?</h1>
-<p class="lede">Ask the help assistant for an instant answer, or open a ticket and a person will reply.</p>
+<p class="lede">Ask Bee, our AI helper, for an instant answer, or open a ticket and a person will reply within one business day. You can also email <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a>.</p>
 </div></section>
 <section class="band"><div class="wrap narrow">
-<h2>Ask a question</h2>
-<div id="chat" class="card" aria-live="polite"><p class="muted">Hi! Ask me anything about the app, access, refunds or licences.</p></div>
+<h2>Ask Bee (AI helper)</h2>
+<div id="chat" class="card" aria-live="polite"><p class="muted">Hi, I'm Bee, Buzzyfly's AI helper. Ask me anything about the app, access, refunds or licences.</p></div>
 <form id="chat-form" class="form"><label for="chat-q">Your question</label><input id="chat-q" maxlength="500" autocomplete="off" required><button class="btn primary" type="submit">Ask</button></form>
 <p class="note">Answers come from an AI assistant and can be wrong. For anything about money or access, open a ticket.</p>
 </div></section>
@@ -61,7 +62,7 @@ ${FAQ.map(([q, a]) => `<details><summary>${esc(q)}</summary><p>${esc(a)}</p></de
 <input type="text" name="website" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true">
 <button class="btn primary" type="submit">Send ticket</button>
 </form>
-<p class="note">You'll get a private link to check replies. We usually reply within one business day.</p>
+<p class="note">You'll get a private link to check replies, and an email when we answer. We usually reply within one business day. Under 13? Ask a parent or teacher to contact us for you.</p>
 </div></section>`,
 			{ path: "/support", script: "/support.js?v=1" },
 		),
@@ -111,7 +112,12 @@ export async function createTicket(req: Request, env: Env): Promise<Response> {
 		.bind(secret, clean(f.get("name"), 80) || null, email, topic, clean(f.get("order_ref"), 80) || null)
 		.first<{ id: number }>();
 	await env.DB.prepare("INSERT INTO ticket_messages (ticket_id, author, body) VALUES (?1, 'customer', ?2)").bind(t!.id, body).run();
-	return Response.redirect(new URL(`/support/ticket/${t!.id}?k=${secret}&new=1`, req.url).toString(), 303);
+	const link = `${new URL(req.url).origin}/support/ticket/${t!.id}?k=${secret}`;
+	await Promise.all([
+		sendTicketReceived(env, email, t!.id, link),
+		notifyOwner(env, `New ticket #${t!.id}: ${topic}`, `From: ${email}\nOrder: ${clean(f.get("order_ref"), 80) || "-"}\n\n${body}\n\nReply in admin: ${new URL(req.url).origin}/admin/tickets/${t!.id}`),
+	]);
+	return Response.redirect(`${link}&new=1`, 303);
 }
 
 async function loadTicket(env: Env, id: number, key: string) {
@@ -142,6 +148,7 @@ export async function ticketPage(req: Request, env: Env, id: number): Promise<Re
 				env.DB.prepare("INSERT INTO ticket_messages (ticket_id, author, body) VALUES (?1, 'customer', ?2)").bind(id, body),
 				env.DB.prepare("UPDATE tickets SET status = 'open', updated_at = datetime('now') WHERE id = ?1").bind(id),
 			]);
+			await notifyOwner(env, `Customer replied on ticket #${id}`, `${body}\n\nReply in admin: ${url.origin}/admin/tickets/${id}`);
 		}
 		return Response.redirect(`${url.origin}/support/ticket/${id}?k=${key}`, 303);
 	}

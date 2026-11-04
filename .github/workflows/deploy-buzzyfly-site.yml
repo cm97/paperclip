@@ -31,6 +31,11 @@ jobs:
       - run: npm ci
       - name: Typecheck and dry-run (no credentials needed)
         run: npm run check
+      # Runs the real Worker locally against a fake PayPal and checks every
+      # purchase, unlock, refund, ticket, admin, survey and security path.
+      # A failure here stops the deploy.
+      - name: End-to-end tests
+        run: npm test
       - name: Apply database migrations
         if: github.event_name != 'pull_request'
         run: npx wrangler d1 migrations apply DB --remote
@@ -44,6 +49,7 @@ jobs:
         env:
           ACCESS_SECRET: ${{ secrets.ACCESS_SECRET }}
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
           ANDROID_SHA256: ${{ secrets.ANDROID_SHA256 }}
           PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
           PAYPAL_SECRET: ${{ secrets.PAYPAL_SECRET }}
@@ -52,14 +58,14 @@ jobs:
           STRIPE_LINK_CLASSROOM: ${{ secrets.STRIPE_LINK_CLASSROOM }}
           STRIPE_LINK_TEAM: ${{ secrets.STRIPE_LINK_TEAM }}
         run: |
-          for name in ACCESS_SECRET ADMIN_TOKEN ANDROID_SHA256 PAYPAL_CLIENT_ID PAYPAL_SECRET STRIPE_SECRET_KEY STRIPE_LINK_STUDENT STRIPE_LINK_CLASSROOM STRIPE_LINK_TEAM; do
+          for name in ACCESS_SECRET ADMIN_TOKEN OWNER_EMAIL ANDROID_SHA256 PAYPAL_CLIENT_ID PAYPAL_SECRET STRIPE_SECRET_KEY STRIPE_LINK_STUDENT STRIPE_LINK_CLASSROOM STRIPE_LINK_TEAM; do
             if [ -n "${!name}" ]; then printf '%s' "${!name}" | npx wrangler secret put "$name" >/dev/null && echo "set $name"; else echo "skip $name (not set)"; fi
           done
       - name: Check the live site
         if: github.event_name != 'pull_request'
         run: |
           sleep 20
-          for p in / /schools /business /app /support /survey /sitemap.xml; do
+          for p in / /schools /business /app /support /survey /about /terms /privacy /refunds /sitemap.xml; do
             code=$(curl -s -o /dev/null -w '%{http_code}' "https://paperclip.buzzyfly.com$p"); echo "$p: $code"; test "$code" = "200"
           done
           curl -s https://paperclip.buzzyfly.com/api/health; echo

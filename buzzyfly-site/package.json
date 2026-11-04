@@ -5,7 +5,8 @@
 	"scripts": {
 		"dev": "wrangler dev",
 		"check": "tsc --noEmit && wrangler deploy --dry-run",
-		"deploy": "wrangler deploy"
+		"deploy": "wrangler deploy",
+		"test": "node tests/e2e.mjs"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^5.20261103.1",

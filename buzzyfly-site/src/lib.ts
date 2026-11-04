@@ -12,6 +12,10 @@ export interface Env {
 	STRIPE_LINK_TEAM?: string;
 	ANDROID_PACKAGE?: string;
 	ANDROID_SHA256?: string;
+	OWNER_EMAIL?: string;
+	EMAIL?: {
+		send(message: { from: string; to: string; subject: string; html?: string; text?: string; headers?: Record<string, string> }): Promise<unknown>;
+	};
 	[key: string]: unknown;
 }
 
@@ -27,6 +31,9 @@ export function html(body: string, status = 200, headers: Record<string, string>
 			"x-content-type-options": "nosniff",
 			"referrer-policy": "strict-origin-when-cross-origin",
 			"x-frame-options": "DENY",
+			"strict-transport-security": "max-age=31536000; includeSubDomains",
+			"permissions-policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+			"cross-origin-opener-policy": "same-origin",
 			"content-security-policy":
 				"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; form-action 'self' https://www.paypal.com https://buy.stripe.com; frame-ancestors 'none'; base-uri 'none'",
 			...headers,
@@ -97,7 +104,7 @@ export function page(
 <meta name="theme-color" content="#ffc533">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/icon-192.png">
-<link rel="stylesheet" href="/styles.css?v=2">
+<link rel="stylesheet" href="/styles.css?v=3">
 ${opts.head ?? ""}
 </head><body>
 <a class="skip" href="#main">Skip to content</a>
@@ -108,7 +115,9 @@ ${opts.head ?? ""}
 <main id="main">${main}</main>
 <footer><div class="wrap">
 <p>${esc(REFUND_LINE)} One-time price. No subscription.</p>
-<p><a href="/support">Help &amp; support</a> · <a href="/survey">Tell us what you need</a> · <a href="/restore">Lost access?</a> · <a href="/terms">Terms &amp; privacy</a> · <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a> · A <a href="https://www.buzzyfly.com/">Buzzyfly</a> app</p>
+<p><a href="/support">Help &amp; support</a> · <a href="/about">About us</a> · <a href="/survey">Tell us what you need</a> · <a href="/restore">Lost access?</a></p>
+<p><a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/refunds">Refunds</a> · <a href="/accessibility">Accessibility</a> · <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a> · A <a href="https://www.buzzyfly.com/">Buzzyfly</a> app</p>
+<p class="note">Not affiliated with any exam board or test maker. Exam names are trademarks of their owners.</p>
 </div></footer>
 <script src="/pwa.js?v=1" defer></script>
 ${opts.script ? `<script src="${opts.script}" defer></script>` : ""}

@@ -20,6 +20,11 @@ and support replies. Flag and stop anything that:
 - breaks a community's or platform's rules;
 - collects data from children, or more personal data than needed.
 
+Before any business gets outreach, run a **trust check** as a stranger would:
+buy with a test, unlock, open support, read the terms and privacy pages,
+and look for anything broken, missing, vague or shady. Block outreach until
+it's fixed.
+
 Send fixes to the agent who made it. Escalate anything legal to the owner.
 
 ## Execution contract
