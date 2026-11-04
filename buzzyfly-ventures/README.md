@@ -5,30 +5,41 @@ An AI company for [Paperclip](https://github.com/paperclipai/paperclip) that
 and sells it through free channels.** The goal is $100,000 a month across a
 portfolio of small businesses, built one tested launch at a time.
 
-## How it works (hub-and-spoke)
+## How it works
 
-The CEO sets priorities and delegates. Each specialist reports back.
+The CEO sets priorities. Three teams do the work. Getting customers comes first.
 
 ```
 Owner
-└── CEO ─ picks ideas, writes briefs, weekly review, shuts down losers
-    ├── Market Researcher ─ proof of demand, surveys, business discovery
-    ├── Builder ─ ships each business on a *.buzzyfly.com subdomain
-    └── Growth Marketer ─ free search pages, communities, partners, 1:1 email
+└── CEO ─ picks businesses, weekly review, shuts down losers
+    ├── Product
+    │   ├── Market Researcher ─ proof of demand, surveys, business discovery
+    │   └── Builder ─ full-stack apps on *.buzzyfly.com, daily-use features
+    ├── Growth ── Head of Growth ─ daily stand-up, 25 No's reviews
+    │   ├── Ads Manager ─ free ads, listings, pins, videos; paid ads only with your yes
+    │   ├── Lead Hunter ─ 25 fresh qualified leads every weekday
+    │   ├── Sales Closer ─ 1:1 outreach, logs every no, closes and upsells
+    │   └── Content Creator ─ articles, short videos, pins, posts
+    └── Operations
+        ├── Customer Success ─ tickets, onboarding, refunds (owner approves)
+        ├── Finance & Operations ─ monthly P&L, progress to $100k/month, deadlines
+        ├── Local Business Operator ─ real-world service businesses
+        └── Compliance Reviewer ─ weekly checks so nothing gets you fined or banned
 ```
 
-| Agent | Reports to | Skills |
-| --- | --- | --- |
-| CEO | Owner | paperclip, find-what-sells |
-| Market Researcher | CEO | paperclip, find-what-sells, customer-discovery |
-| Builder | CEO | paperclip, build-buzzyfly-app |
-| Growth Marketer | CEO | paperclip, free-growth-outreach |
+| Skill | What it teaches |
+| --- | --- |
+| twenty-five-nos | The owner's sales system: 25 no's from 25 people, log reasons, change one thing, repeat |
+| revenue-systems | One-time, upgrade ladders, subscriptions (owner's yes), credits, licences, services, marketplaces, honest daily-use design |
+| free-ad-channels | Free listings, short video, pins, communities, classifieds, partners; paid ads only with approval |
+| find-what-sells | Proof of demand and the build scorecard |
+| customer-discovery | Surveys, five questions, business discovery emails |
+| build-buzzyfly-app | The full-stack app standard (back end, support, surveys, Play Store, SEO) |
+| free-growth-outreach | Lawful email, phone and community rules |
 
-**Projects:** Study Plan (first 100 sales for paperclip.buzzyfly.com) and
-Venture Pipeline (find → score → build → launch).
-**Routines:** weekly portfolio review (Mon), daily free outreach (Mon–Fri), customer needs report (1st and 15th).
-
-**Every app is full-stack:** back end and database, customer support (AI chat, tickets, admin replies), surveys, installable app, Play Store wrapper and search-engine files. See `skills/build-buzzyfly-app`.
+**Daily:** lead hunt, sales outreach, free ad placements, support inbox, growth stand-up.
+**Weekly:** content pack, compliance check, portfolio review. **Every 2 weeks:**
+customer needs report. **Monthly:** money report.
 
 ## Hard rules
 

@@ -22,3 +22,38 @@ routines:
       - kind: schedule
         cronExpression: "0 14 1,15 * *"
         timezone: UTC
+  free-ad-placements:
+    triggers:
+      - kind: schedule
+        cronExpression: "30 14 * * 1-5"
+        timezone: UTC
+  lead-hunt:
+    triggers:
+      - kind: schedule
+        cronExpression: "0 13 * * 1-5"
+        timezone: UTC
+  sales-outreach:
+    triggers:
+      - kind: schedule
+        cronExpression: "0 16 * * 1-5"
+        timezone: UTC
+  weekly-content:
+    triggers:
+      - kind: schedule
+        cronExpression: "0 15 * * 2"
+        timezone: UTC
+  support-inbox:
+    triggers:
+      - kind: schedule
+        cronExpression: "0 14 * * 1-5"
+        timezone: UTC
+  monthly-finance:
+    triggers:
+      - kind: schedule
+        cronExpression: "0 15 1 * *"
+        timezone: UTC
+  compliance-check:
+    triggers:
+      - kind: schedule
+        cronExpression: "0 17 * * 5"
+        timezone: UTC

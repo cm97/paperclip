@@ -1,6 +1,6 @@
 // Offline support: keeps the app shell available so plans open without a connection.
-var CACHE = "bf-study-v2";
-var SHELL = ["/app", "/app.js?v=2", "/styles.css?v=2", "/pwa.js?v=1", "/favicon.svg", "/icon-192.png"];
+var CACHE = "bf-study-v3";
+var SHELL = ["/app", "/app.js?v=3", "/styles.css?v=2", "/pwa.js?v=1", "/favicon.svg", "/icon-192.png"];
 self.addEventListener("install", function (e) {
 	e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));
 });

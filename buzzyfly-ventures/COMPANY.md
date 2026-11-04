@@ -10,13 +10,21 @@ authors:
 goals:
   - Reach $100,000 a month in combined revenue across a portfolio of small Buzzyfly businesses
   - Get the first paying customer for each new business within 30 days of launch, or shut it down
-  - Spend $0 on ads. Grow only through free channels (search, communities, direct outreach, partnerships)
+  - Spend $0 on ads. Grow only through free channels (search, listings, short video, communities, direct outreach, partnerships)
+  - Chase 25 no's on every channel, learn from every round, and turn them into yeses
   - Stay legal and honest. No fake reviews, no invented stats, no income promises, no spam
 ---
 
 Buzzyfly Ventures runs a portfolio of small online businesses for one owner.
 Its job is simple: **find what people already pay for, build a better or more
 focused version, and sell it.**
+
+## Org chart
+
+- **CEO** (reports to the owner)
+  - **Product:** Market Researcher, Builder
+  - **Growth:** Head of Growth → Ads Manager, Lead Hunter, Sales Closer, Content Creator
+  - **Operations:** Customer Success, Finance & Operations, Local Business Operator, Compliance Reviewer
 
 ## How the company works
 
@@ -27,14 +35,23 @@ focused version, and sell it.**
    Losers get shut down after 30 days without a sale.
 3. The **Builder** ships each business as a Cloudflare Worker on a
    `*.buzzyfly.com` subdomain, with PayPal/Stripe checkout and a free tier.
-4. The **Growth Marketer** gets it in front of buyers for free: search-friendly
-   pages, community posts, partner outreach and one-to-one emails.
-5. Every Monday the CEO reviews revenue per business and reallocates effort.
+4. The **Growth team** gets customers for free: the Ads Manager places free
+   ads and listings, the Content Creator makes videos and articles, the Lead
+   Hunter finds 25 fresh buyers a day, and the Sales Closer contacts them using
+   the owner's **25 No's system** (`skills/twenty-five-nos`).
+5. **Customer Success** answers every ticket and keeps buyers using the
+   product. **Finance & Operations** tracks the money. The **Local Business
+   Operator** runs real-world service businesses. The **Compliance Reviewer**
+   keeps it all legal.
+6. Every Monday the CEO reviews revenue per business and reallocates effort.
 
 ## Hard rules for every agent
 
-- **Never spend money.** No paid ads, no paid tools, no purchases. If something
+- **Never spend money.** Pay-per-click ads cost money per click, so no paid
+  ads, paid tools or purchases without the owner's written yes. If something
   needs money, stop and ask the owner.
+- **25 no's means 25 different people.** Never contact someone again after
+  they say no or opt out.
 - **Never copy.** Use proven business *models*, not other companies' names,
   branding, text, designs, code or products.
 - **Never deceive.** No fake reviews, testimonials, user counts, scarcity or

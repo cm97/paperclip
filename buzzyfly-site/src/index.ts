@@ -174,7 +174,7 @@ function appPage(pass: Pass | null): string {
 <noscript><p>This app needs JavaScript turned on.</p></noscript>
 <p class="muted">Loading your plans…</p>
 </div>`,
-		{ path: "/app", script: "/app.js?v=2" },
+		{ path: "/app", script: "/app.js?v=3" },
 	);
 }
 

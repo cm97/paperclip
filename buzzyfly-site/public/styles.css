@@ -70,3 +70,4 @@ textarea{min-height:120px}
 .table{overflow-x:auto;max-width:100%;margin-bottom:24px}
 table{border-collapse:collapse;width:100%;font-size:15px}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
 button:disabled{opacity:.6}
+.streak{font-weight:700;margin:8px 0}

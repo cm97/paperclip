@@ -135,6 +135,16 @@
 		return wrap;
 	}
 
+	// Days in a row (ending today, or yesterday if today isn't started) with at least one session ticked.
+	function streak() {
+		var days = {};
+		state.exams.forEach(function (e) { Object.keys(e.done).forEach(function (k) { days[k.split("|")[0]] = 1; }); });
+		var d = today(), n = 0;
+		if (!days[d]) d = addDays(d, -1);
+		while (days[d]) { n++; d = addDays(d, -1); }
+		return n;
+	}
+
 	function planView(exam, onlyToday) {
 		var plan = buildPlan(exam);
 		var t = today();
@@ -146,6 +156,8 @@
 			h("p", { class: "muted", text: (left > 0 ? left + " day" + (left === 1 ? "" : "s") + " to go" : left === 0 ? "Exam day. You've got this." : "Exam date has passed") + " · " + exam.minutes + " min a day · " + done + " of " + total + " sessions done" }),
 			h("div", { class: "bar", role: "progressbar", "aria-valuemin": 0, "aria-valuemax": total, "aria-valuenow": done }, [h("span", { style: "width:" + (total ? Math.round((done / total) * 100) : 0) + "%" })]),
 		]);
+		var st = streak();
+		if (onlyToday) box.appendChild(h("p", { class: "streak", text: st ? "🔥 " + st + "-day study streak. Keep it going today." : "Tick one session today to start a streak." }));
 		var days = onlyToday ? plan.filter(function (d) { return d.date === t || (d.date < t && d.items.some(function (it) { return !exam.done[d.date + "|" + it]; })); }) : plan;
 		var openToday = days.some(function (d) { return d.items.some(function (it) { return !exam.done[d.date + "|" + it]; }); });
 		if (onlyToday && !openToday) box.appendChild(h("p", { text: "Nothing left for today. Drill a few flashcards or rest." }));
