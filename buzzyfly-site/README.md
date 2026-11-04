@@ -32,9 +32,9 @@ workflow copies them onto the Worker:
 | Secret | What it is |
 | --- | --- |
 | `CLOUDFLARE_API_TOKEN` | Needed to deploy at all |
-| `ACCESS_SECRET` | Any long random string. Required to sell. |
-| `ADMIN_TOKEN` | Any long random string (16+ chars). Your password for `/admin`. |
-| `OWNER_EMAIL` | Where new-ticket alerts go (private, never shown on the site) |
+| `ACCESS_SECRET` | Optional. If unset, the Worker generates one on first run and keeps it in D1. |
+| `ADMIN_TOKEN` | Optional. Admin sign-in works without it: `/admin` emails a one-time link to the owner inbox. |
+| `OWNER_EMAIL` | Optional. Owner inbox for alerts and admin links (default `support@buzzyfly.com`, never shown on the site) |
 | `ANDROID_SHA256` | Play Store signing fingerprints (see `android/PLAY-STORE.md`) |
 | `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` | Your Play upload key, so GitHub builds a signed `.aab` |
 | `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET` | Same Live REST app keys buzzyfly.com uses |
@@ -45,7 +45,10 @@ For each Stripe Payment Link, set "After payment → redirect" to
 `https://paperclip.buzzyfly.com/stripe/return?session_id={CHECKOUT_SESSION_ID}&p=student`
 (or `p=classroom`, `p=team`).
 
-Until `ACCESS_SECRET` plus PayPal or Stripe are set, buy buttons open a support ticket request.
+Until PayPal or Stripe keys are set, buy buttons open a purchase request ticket (answer it with a PayPal invoice).
+
+**Deploys** also run from the buzzyfly.com repo (`cm97/astro-blog-starter-template`,
+workflow "Deploy paperclip.buzzyfly.com"), which already holds the Cloudflare token.
 
 ## Develop
 

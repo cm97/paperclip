@@ -3,6 +3,7 @@
 // Usage: npm test
 import { spawn } from "node:child_process";
 import { rmSync } from "node:fs";
+import { createHash, randomBytes } from "node:crypto";
 import http from "node:http";
 import { setTimeout as sleep } from "node:timers/promises";
 
@@ -44,7 +45,7 @@ await new Promise((res) => pp.listen(PP_PORT, res));
 // ---- worker ----
 const run = (args) => new Promise((res) => spawn("npx", args, { stdio: "inherit" }).on("exit", res));
 await run(["wrangler", "d1", "migrations", "apply", "DB", "--local", "-c", "wrangler.test.json", "--persist-to", STATE]);
-const vars = { ACCESS_SECRET: "test-secret", ADMIN_TOKEN: ADMIN, PAYPAL_CLIENT_ID: "a", PAYPAL_SECRET: "b", PAYPAL_API_BASE: `http://127.0.0.1:${PP_PORT}` };
+const vars = { ADMIN_TOKEN: ADMIN, PAYPAL_CLIENT_ID: "a", PAYPAL_SECRET: "b", PAYPAL_API_BASE: `http://127.0.0.1:${PP_PORT}` };
 const dev = spawn("npx", ["wrangler", "dev", "-c", "wrangler.test.json", "--port", String(PORT), "--persist-to", STATE, ...Object.entries(vars).flatMap(([k, v]) => ["--var", `${k}:${v}`])], { stdio: ["ignore", "pipe", "inherit"], detached: true });
 // Refuse to test against a stale server left on the port.
 try { await fetch(`${B}/api/health`); console.error(`Port ${PORT} is already in use. Stop the old server first.`); process.exit(2); } catch {}
@@ -122,6 +123,23 @@ try {
 	await post("/admin/orders/refund", { ref: "ORDERSTUDENT123", confirm: "yes" }, A);
 	ok("refunded pass no longer unlocks", (await (await get("/app", { headers: { cookie: globalThis.studentCookie } })).text()).includes('data-tier="free"'));
 	ok("refunded order can't be re-claimed", (await get("/paypal/return?token=ORDERSTUDENTREFUND".replace("REFUND", "123"))).status === 403);
+
+	// Email-link admin sign-in (token inserted directly; email isn't available locally)
+	ok("email link needs the email service", (await post("/admin/email-link", {})).status === 503);
+	ok("bad magic link rejected", (await get("/admin/magic?t=nope")).status === 400);
+	const tok = randomBytes(24).toString("hex");
+	const hash = createHash("sha256").update(`link|${tok}`).digest("hex");
+	await run(["wrangler", "d1", "execute", "DB", "--local", "-c", "wrangler.test.json", "--persist-to", STATE, "--command", `INSERT INTO admin_links (hash, expires_at) VALUES ('${hash}', ${Date.now() + 600000})`]);
+	const magic = await get(`/admin/magic?t=${tok}`);
+	const sess = cookieOf(magic);
+	ok("magic link signs in", magic.status === 303 && sess.startsWith("bf_admin="));
+	ok("magic session opens admin", (await get("/admin", { headers: { cookie: sess } })).status === 200);
+	ok("magic link works only once", (await get(`/admin/magic?t=${tok}`)).status === 400);
+	const tok2 = randomBytes(24).toString("hex");
+	const hash2 = createHash("sha256").update(`link|${tok2}`).digest("hex");
+	await run(["wrangler", "d1", "execute", "DB", "--local", "-c", "wrangler.test.json", "--persist-to", STATE, "--command", `INSERT INTO admin_links (hash, expires_at) VALUES ('${hash2}', ${Date.now() - 1000})`]);
+	ok("expired magic link rejected", (await get(`/admin/magic?t=${tok2}`)).status === 400);
+	ok("fake session cookie rejected", (await get("/admin", { headers: { cookie: `bf_admin=${"a".repeat(48)}` } })).status === 302);
 
 	// Privacy erase
 	await post("/admin/erase", { kind: "ticket", id: tid, confirm: "yes" }, A);

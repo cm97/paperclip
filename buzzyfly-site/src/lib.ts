@@ -19,6 +19,28 @@ export interface Env {
 	[key: string]: unknown;
 }
 
+/** Where owner alerts and admin sign-in links go when OWNER_EMAIL isn't set. */
+export const OWNER_INBOX_DEFAULT = "support@buzzyfly.com";
+export const ownerInbox = (env: Env) => env.OWNER_EMAIL?.trim() || OWNER_INBOX_DEFAULT;
+
+let cachedSecret: string | null = null;
+/**
+ * Makes sure ACCESS_SECRET exists. If the Worker secret isn't set, a random
+ * 256-bit secret is generated once and kept in D1, so the site configures itself.
+ */
+export async function ensureAccessSecret(env: Env): Promise<void> {
+	if (env.ACCESS_SECRET) return;
+	if (cachedSecret) { env.ACCESS_SECRET = cachedSecret; return; }
+	if (!env.DB) return;
+	try {
+		await env.DB.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('access_secret', ?1)").bind(randomId(32)).run();
+		const row = await env.DB.prepare("SELECT value FROM settings WHERE key = 'access_secret'").first<{ value: string }>();
+		if (row?.value) { cachedSecret = row.value; env.ACCESS_SECRET = row.value; }
+	} catch (e) {
+		console.error("ensureAccessSecret", e);
+	}
+}
+
 export const esc = (s: unknown) =>
 	String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 

@@ -2,7 +2,7 @@ import { BRAND, FREE_LIMITS, PRODUCTS, REFUND_LINE, SUPPORT_EMAIL, productById, 
 import { admin } from "./admin";
 import { sendReceipt } from "./email";
 import { legalPage } from "./legal";
-import { esc, html, message, page, readCookie, type Env } from "./lib";
+import { ensureAccessSecret, esc, html, message, page, readCookie, type Env } from "./lib";
 import { captureOrder, createOrder, paypalConfigured } from "./paypal";
 import { chat, createTicket, supportPage, ticketPage } from "./support";
 import { saveSurvey, surveyForm, surveyPage } from "./survey";
@@ -258,6 +258,7 @@ export default {
 		const method = req.method;
 
 		try {
+			await ensureAccessSecret(env);
 			if (method === "POST") {
 				if (path === "/support/tickets") return createTicket(req, env);
 				if (path === "/api/support/chat") return chat(req, env);
@@ -303,7 +304,8 @@ export default {
 					ok: true,
 					db: Boolean(env.DB),
 					ai: Boolean(env.AI),
-					admin: Boolean(env.ADMIN_TOKEN && env.ADMIN_TOKEN.length >= 16),
+					admin: Boolean((env.ADMIN_TOKEN && env.ADMIN_TOKEN.length >= 16) || (env.DB && env.EMAIL)),
+					email: Boolean(env.EMAIL),
 					accessSecret: Boolean(env.ACCESS_SECRET),
 					paypal: paypalConfigured(env),
 					stripe: Object.fromEntries(Object.values(PRODUCTS).map((p) => [p.id, Boolean(stripeLink(env, p))])),

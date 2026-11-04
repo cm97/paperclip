@@ -2,7 +2,7 @@
 // buzzyfly.com already uses). Every send is best-effort: a failed email never
 // blocks a purchase or a ticket, because the same information is always on screen.
 import { BRAND, PRODUCTS, REFUND_LINE, SUPPORT_EMAIL, type Product } from "./config";
-import { esc, type Env } from "./lib";
+import { esc, ownerInbox, type Env } from "./lib";
 
 const FROM_ORDERS = `${BRAND} <orders@buzzyfly.com>`;
 const FROM_SUPPORT = `Buzzyfly Support <support@buzzyfly.com>`;
@@ -79,7 +79,16 @@ export function sendTicketReply(env: Env, to: string, id: number, link: string, 
 }
 
 export function notifyOwner(env: Env, subject: string, text: string) {
-	const to = env.OWNER_EMAIL?.trim();
-	if (!to) return Promise.resolve(false);
+	const to = ownerInbox(env);
 	return send(env, { from: FROM_SUPPORT, to, subject: `[Study Plan] ${subject}`, html: wrap(`<pre style="white-space:pre-wrap;font:14px/1.5 ui-monospace,monospace">${esc(text)}</pre>`), text });
+}
+
+export function sendAdminLink(env: Env, link: string) {
+	return send(env, {
+		from: FROM_SUPPORT,
+		to: ownerInbox(env),
+		subject: "Your Study Plan admin sign-in link",
+		html: wrap(`<p>Someone asked to sign in to the Study Plan admin. If it was you, click below within 15 minutes.</p>${button(link, "Sign in to admin")}<p style="font-size:14px;color:#555">If it wasn't you, ignore this email. Nobody can sign in without this link.</p>`),
+		text: `Sign in to the Study Plan admin (valid 15 minutes):\n${link}\n\nIf it wasn't you, ignore this email.`,
+	});
 }

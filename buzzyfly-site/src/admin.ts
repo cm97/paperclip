@@ -1,13 +1,20 @@
-import { sendTicketReply } from "./email";
-import { clean, esc, html, message, page, rateLimited, readCookie, sameOrigin, sha256, timingSafeEqual, type Env } from "./lib";
+import { sendAdminLink, sendTicketReply } from "./email";
+import { clean, esc, html, message, page, randomId, rateLimited, readCookie, sameOrigin, sha256, timingSafeEqual, type Env } from "./lib";
 import { renderThread } from "./support";
 
 const COOKIE = "bf_admin";
 
+const LINK_TTL = 15 * 60 * 1000;
+const SESSION_TTL = 30 * 24 * 3600 * 1000;
+const sessionCookie = (v: string) => `${COOKIE}=${v}; Path=/admin; Max-Age=${SESSION_TTL / 1000}; HttpOnly; Secure; SameSite=Lax`;
+
 async function isAdmin(req: Request, env: Env): Promise<boolean> {
-	if (!env.ADMIN_TOKEN || env.ADMIN_TOKEN.length < 16) return false;
 	const c = readCookie(req, COOKIE);
-	return !!c && timingSafeEqual(c, await sha256(`admin|${env.ADMIN_TOKEN}`));
+	if (!c) return false;
+	if (env.ADMIN_TOKEN && env.ADMIN_TOKEN.length >= 16 && timingSafeEqual(c, await sha256(`admin|${env.ADMIN_TOKEN}`))) return true;
+	if (!env.DB || !/^[0-9a-f]{40,80}$/.test(c)) return false;
+	const row = await env.DB.prepare("SELECT expires_at FROM admin_sessions WHERE hash = ?1").bind(await sha256(`session|${c}`)).first<{ expires_at: number }>();
+	return !!row && row.expires_at > Date.now();
 }
 
 function shell(title: string, body: string): Response {
@@ -16,6 +23,36 @@ function shell(title: string, body: string): Response {
 
 export async function admin(req: Request, env: Env, path: string): Promise<Response> {
 	const url = new URL(req.url);
+
+	// Email-link sign-in: no password to manage. The link goes to the owner's inbox.
+	if (path === "/admin/email-link" && req.method === "POST") {
+		if (!sameOrigin(req)) return message("Bad origin", "", 403);
+		if (!env.DB || !env.EMAIL) return message("Email sign-in isn't available", "<p>The database or email service isn't connected.</p>", 503);
+		if (await rateLimited(env, req, "admin-link", 3)) return message("Too many requests", "<p>Please wait an hour.</p>", 429);
+		const token = randomId(24);
+		await env.DB.batch([
+			env.DB.prepare("DELETE FROM admin_links WHERE expires_at < ?1").bind(Date.now()),
+			env.DB.prepare("INSERT INTO admin_links (hash, expires_at) VALUES (?1, ?2)").bind(await sha256(`link|${token}`), Date.now() + LINK_TTL),
+			env.DB.prepare("INSERT INTO audit_log (action, detail) VALUES ('admin_link_requested', ?1)").bind(req.headers.get("cf-connecting-ip") || ""),
+		]);
+		await sendAdminLink(env, `${url.origin}/admin/magic?t=${token}`);
+		return shell("Check your email", `<h1>Check the owner inbox</h1><p>If email is set up, a sign-in link is on its way to the owner's inbox. It works once, for 15 minutes.</p>`);
+	}
+	if (path === "/admin/magic") {
+		const token = url.searchParams.get("t") || "";
+		if (!env.DB || !/^[0-9a-f]{48}$/.test(token)) return message("That sign-in link isn't valid", `<p><a href="/admin/login">Get a new link</a></p>`, 400);
+		const hash = await sha256(`link|${token}`);
+		const used = await env.DB.prepare("UPDATE admin_links SET used = 1 WHERE hash = ?1 AND used = 0 AND expires_at > ?2 RETURNING hash").bind(hash, Date.now()).first();
+		if (!used) return message("That sign-in link has expired or was already used", `<p><a href="/admin/login">Get a new link</a></p>`, 400);
+		const session = randomId(24);
+		await env.DB.batch([
+			env.DB.prepare("DELETE FROM admin_sessions WHERE expires_at < ?1").bind(Date.now()),
+			env.DB.prepare("INSERT INTO admin_sessions (hash, expires_at) VALUES (?1, ?2)").bind(await sha256(`session|${session}`), Date.now() + SESSION_TTL),
+			env.DB.prepare("INSERT INTO audit_log (action, detail) VALUES ('admin_signed_in', 'email_link')"),
+		]);
+		return new Response(null, { status: 303, headers: { location: "/admin", "set-cookie": sessionCookie(session) } });
+	}
+
 	if (path === "/admin/login") {
 		if (req.method === "POST") {
 			if (!sameOrigin(req)) return message("Bad origin", "", 403);
@@ -32,9 +69,9 @@ export async function admin(req: Request, env: Env, path: string): Promise<Respo
 		}
 		return shell(
 			"Sign in",
-			env.ADMIN_TOKEN
-				? `<h1>Admin sign in</h1><form class="form" method="post"><label for="tk">Admin key</label><input id="tk" name="token" type="password" required autocomplete="current-password"><button class="btn primary">Sign in</button></form>`
-				: `<h1>Admin is not set up</h1><p>Add an <code>ADMIN_TOKEN</code> secret (16+ characters) to the Worker.</p>`,
+			`<h1>Admin sign in</h1>
+<form class="form" method="post" action="/admin/email-link"><p>We'll email a one-time sign-in link to the owner's inbox.</p><button class="btn primary">Email me a sign-in link</button></form>
+${env.ADMIN_TOKEN ? `<details><summary>Sign in with an admin key instead</summary><form class="form" method="post"><label for="tk">Admin key</label><input id="tk" name="token" type="password" required autocomplete="current-password"><button class="btn">Sign in</button></form></details>` : ""}`,
 		);
 	}
 	if (!(await isAdmin(req, env))) return Response.redirect(`${url.origin}/admin/login`, 302);
