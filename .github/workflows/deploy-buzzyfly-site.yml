@@ -27,7 +27,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: "22"
+          node-version: "24"
           # The repo root uses pnpm; this site uses npm, so skip auto-caching.
           package-manager-cache: false
       - run: npm ci
