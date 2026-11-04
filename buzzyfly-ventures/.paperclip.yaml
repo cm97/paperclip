@@ -1,0 +1,59 @@
+schema: paperclip/v1
+agents:
+  builder:
+    inputs:
+      env:
+        GH_TOKEN:
+          kind: secret
+          requirement: optional
+routines:
+  weekly-portfolio-review:
+    triggers:
+      - kind: schedule
+        cronExpression: "0 14 * * 1"
+        timezone: UTC
+  daily-outreach:
+    triggers:
+      - kind: schedule
+        cronExpression: "0 15 * * 1-5"
+        timezone: UTC
+  customer-needs-report:
+    triggers:
+      - kind: schedule
+        cronExpression: "0 14 1,15 * *"
+        timezone: UTC
+  free-ad-placements:
+    triggers:
+      - kind: schedule
+        cronExpression: "30 14 * * 1-5"
+        timezone: UTC
+  lead-hunt:
+    triggers:
+      - kind: schedule
+        cronExpression: "0 13 * * 1-5"
+        timezone: UTC
+  sales-outreach:
+    triggers:
+      - kind: schedule
+        cronExpression: "0 16 * * 1-5"
+        timezone: UTC
+  weekly-content:
+    triggers:
+      - kind: schedule
+        cronExpression: "0 15 * * 2"
+        timezone: UTC
+  support-inbox:
+    triggers:
+      - kind: schedule
+        cronExpression: "0 14 * * 1-5"
+        timezone: UTC
+  monthly-finance:
+    triggers:
+      - kind: schedule
+        cronExpression: "0 15 1 * *"
+        timezone: UTC
+  compliance-check:
+    triggers:
+      - kind: schedule
+        cronExpression: "0 17 * * 5"
+        timezone: UTC

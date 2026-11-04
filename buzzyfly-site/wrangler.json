@@ -1,0 +1,42 @@
+{
+	"$schema": "https://unpkg.com/wrangler@4/config-schema.json",
+	"name": "buzzyfly-paperclip",
+	"main": "./src/index.ts",
+	"compatibility_date": "2026-09-01",
+	"observability": {
+		"enabled": true
+	},
+	"assets": {
+		"directory": "./public",
+		"binding": "ASSETS"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "buzzyfly-study-db",
+			"database_id": "209f2784-1c33-495f-ba7a-d01bd1cc7685",
+			"migrations_dir": "migrations"
+		}
+	],
+	"ai": {
+		"binding": "AI"
+	},
+	"vars": {
+		"ANDROID_PACKAGE": "com.buzzyfly.studyplan"
+	},
+	"routes": [
+		{
+			"pattern": "paperclip.buzzyfly.com",
+			"custom_domain": true
+		}
+	],
+	"send_email": [
+		{
+			"name": "EMAIL",
+			"allowed_sender_addresses": [
+				"orders@buzzyfly.com",
+				"support@buzzyfly.com"
+			]
+		}
+	]
+}

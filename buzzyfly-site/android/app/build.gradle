@@ -1,0 +1,49 @@
+plugins { id 'com.android.application' }
+
+// Trusted Web Activity: opens https://paperclip.buzzyfly.com full-screen.
+def host = 'paperclip.buzzyfly.com'
+def ks = System.getenv('ANDROID_KEYSTORE_PATH')
+
+android {
+    namespace 'com.buzzyfly.studyplan'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.buzzyfly.studyplan'
+        minSdk 23
+        targetSdk 36
+        versionCode Integer.parseInt(System.getenv('VERSION_CODE') ?: '1')
+        versionName System.getenv('VERSION_NAME') ?: '1.0.0'
+        manifestPlaceholders = [hostName: host, defaultUrl: "https://${host}/app?src=play"]
+        resValue 'string', 'app_name', 'Study Plan'
+        resValue 'string', 'asset_statements',
+            "[{ \\\"relation\\\": [\\\"delegate_permission/common.handle_all_urls\\\"], \\\"target\\\": { \\\"namespace\\\": \\\"web\\\", \\\"site\\\": \\\"https://${host}\\\" } }]"
+    }
+
+    signingConfigs {
+        if (ks) {
+            release {
+                storeFile file(ks)
+                storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('ANDROID_KEY_ALIAS') ?: 'upload'
+                keyPassword System.getenv('ANDROID_KEY_PASSWORD') ?: System.getenv('ANDROID_KEYSTORE_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (ks) signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}

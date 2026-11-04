@@ -1,0 +1,67 @@
+name: Android app (Google Play) – Buzzyfly Study Plan
+
+# Builds the Play Store bundle (.aab) for the Trusted Web Activity in
+# buzzyfly-site/android. Download it from the run's "Artifacts" and upload it in
+# Play Console. With the ANDROID_KEYSTORE_* secrets set, the bundle is signed
+# with your upload key and ready for Play.
+on:
+  push:
+    branches: [master]
+    paths: ["buzzyfly-site/android/**", ".github/workflows/android-buzzyfly-study.yml"]
+  pull_request:
+    paths: ["buzzyfly-site/android/**", ".github/workflows/android-buzzyfly-study.yml"]
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: "Version name shown in Play (e.g. 1.0.1)"
+        default: "1.0.0"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: buzzyfly-site/android
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      # GitHub's Ubuntu runners ship the Android SDK; use it directly.
+      - name: Use the preinstalled Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14.3"
+      - name: Restore upload key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+            echo "Signing with your upload key."
+          else
+            echo "::warning::ANDROID_KEYSTORE_BASE64 is not set: building an unsigned bundle. See buzzyfly-site/android/PLAY-STORE.md."
+          fi
+      - name: Build Play bundle and test APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: ${{ inputs.version_name || '1.0.0' }}
+        run: gradle --no-daemon bundleRelease assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: buzzyfly-study-plan-android
+          path: |
+            buzzyfly-site/android/app/build/outputs/bundle/release/*.aab
+            buzzyfly-site/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

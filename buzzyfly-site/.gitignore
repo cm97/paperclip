@@ -1,0 +1,10 @@
+node_modules
+.wrangler
+.dev.vars
+android/*.keystore
+android/*.aab
+android/*.apk
+android/app/build/
+android/.gradle/
+android/build/
+.dev.vars*
