@@ -1,0 +1,19 @@
+schema: paperclip/v1
+agents:
+  builder:
+    inputs:
+      env:
+        GH_TOKEN:
+          kind: secret
+          requirement: optional
+routines:
+  weekly-portfolio-review:
+    triggers:
+      - kind: schedule
+        cronExpression: "0 14 * * 1"
+        timezone: UTC
+  daily-outreach:
+    triggers:
+      - kind: schedule
+        cronExpression: "0 15 * * 1-5"
+        timezone: UTC
