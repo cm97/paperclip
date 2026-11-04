@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paperclip at Buzzyfly</title>
+<meta name="description" content="A Buzzyfly guide to Paperclip, the free open-source app for running a team of AI agents. What it does, who it's for, and how to install it in one command.">
+<link rel="canonical" href="https://paperclip.buzzyfly.com/">
+<meta property="og:title" content="Paperclip at Buzzyfly">
+<meta property="og:description" content="Run a team of AI agents like a small company. Free, open source, self-hosted.">
+<meta property="og:url" content="https://paperclip.buzzyfly.com/">
+<meta property="og:type" content="website">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+:root{
+  --bg:#fffdf7;--surface:#ffffff;--ink:#1a1a1a;--muted:#5b5b5b;--line:#e8e2d2;
+  --accent:#e0a100;--accent-ink:#1a1a1a;--code:#f4efe1;--focus:#1f5fd6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121212;--surface:#1c1c1c;--ink:#f2f2f2;--muted:#b3b3b3;--line:#2e2e2e;
+    --accent:#ffc533;--accent-ink:#121212;--code:#262626;--focus:#8ab4ff;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121212;--surface:#1c1c1c;--ink:#f2f2f2;--muted:#b3b3b3;--line:#2e2e2e;
+  --accent:#ffc533;--accent-ink:#121212;--code:#262626;--focus:#8ab4ff;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:inherit}
+a:focus-visible,button:focus-visible{outline:3px solid var(--focus);outline-offset:3px;border-radius:6px}
+.wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+header.top{border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;min-height:60px;gap:12px}
+.brand{font-weight:800;text-decoration:none;display:flex;align-items:center;gap:8px}
+.brand span{color:var(--accent)}
+nav a{text-decoration:none;color:var(--muted);padding:10px 8px;display:inline-block;min-height:44px}
+nav a:hover{color:var(--ink)}
+.hero{padding:64px 0 40px}
+.eyebrow{font-size:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+h1{font-size:clamp(32px,6vw,54px);line-height:1.1;margin:0 0 16px;letter-spacing:-.02em}
+.lede{font-size:clamp(18px,2.4vw,21px);color:var(--muted);max-width:640px;margin:0 0 28px}
+.ctas{display:flex;flex-wrap:wrap;gap:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 22px;border-radius:10px;font-weight:700;text-decoration:none;border:2px solid var(--ink)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:hover{transform:translateY(-1px)}
+section{padding:40px 0}
+h2{font-size:clamp(24px,3.6vw,32px);line-height:1.2;margin:0 0 20px;letter-spacing:-.01em}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px}
+.card h3{margin:0 0 8px;font-size:19px}
+.card p{margin:0;color:var(--muted)}
+.steps{counter-reset:s;list-style:none;padding:0;margin:0;display:grid;gap:12px}
+.steps li{min-width:0;counter-increment:s;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 18px 18px 64px;position:relative}
+.steps li::before{content:counter(s);position:absolute;left:18px;top:16px;width:32px;height:32px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-weight:800;display:grid;place-items:center}
+pre{max-width:100%;background:var(--code);border:1px solid var(--line);border-radius:12px;padding:16px;overflow-x:auto;font-size:15px;margin:0 0 12px}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.copy{min-height:44px;padding:0 16px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;cursor:pointer}
+.fit{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+.fit li{padding-left:30px;position:relative}
+.fit li::before{content:"✓";position:absolute;left:0;color:var(--accent);font-weight:900}
+.fit.not li::before{content:"✕";color:var(--muted)}
+details{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0 18px;margin-bottom:10px}
+summary{cursor:pointer;font-weight:700;min-height:52px;display:flex;align-items:center}
+details p{margin:0 0 16px;color:var(--muted)}
+.band{background:var(--surface);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+footer{padding:32px 0 48px;color:var(--muted);font-size:15px}
+footer a{color:var(--ink)}
+.note{font-size:14px;color:var(--muted)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}.btn:hover{transform:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="Paperclip at Buzzyfly home">📎 Paperclip <span>at Buzzyfly</span></a>
+    <nav aria-label="Main">
+      <a href="#install">Install</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://www.buzzyfly.com/">Buzzyfly</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <p class="eyebrow">Free and open source · MIT licence</p>
+      <h1>Stop juggling AI chats. Run your agents like a small team.</h1>
+      <p class="lede">Paperclip gives every AI agent a role, a goal and a budget. You see who is doing what, what it costs, and you approve the big moves. All from one dashboard on your own computer.</p>
+      <div class="ctas">
+        <a class="btn primary" href="#install">Install it in one command</a>
+        <a class="btn" href="https://github.com/paperclipai/paperclip">See the source on GitHub</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap">
+      <h2>What you get</h2>
+      <div class="grid">
+        <div class="card"><h3>An org chart for your agents</h3><p>Hire a CEO, an engineer, a marketer. Claude, Codex, Cursor or any other agent can fill a seat.</p></div>
+        <div class="card"><h3>Budgets that stop runaway spend</h3><p>Set a spending limit per agent. Track the cost of every task in one place.</p></div>
+        <div class="card"><h3>You stay in charge</h3><p>Agents ask before big decisions. Review plans, approve work and step in any time.</p></div>
+        <div class="card"><h3>Work that runs on a schedule</h3><p>Routines keep recurring jobs going while you sleep. Every action is logged.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <h2>Install it in one command</h2>
+      <ol class="steps">
+        <li><strong>Install Node.js 24.11 or newer.</strong> Get it free from <a href="https://nodejs.org/">nodejs.org</a>.</li>
+        <li>
+          <strong>Run this in your terminal.</strong>
+          <pre><code id="cmd">npx paperclipai@latest onboard --yes</code></pre>
+          <button class="copy" type="button" data-copy="cmd">Copy command</button>
+        </li>
+        <li><strong>Set a goal and hire your first agent.</strong> The <a href="https://docs.paperclip.ing/guides/getting-started/five-minute-path/">five-minute guide</a> walks you through it.</li>
+      </ol>
+      <p class="note">No Paperclip account needed. Your data stays on your machine. You pay your AI provider for the agents you run.</p>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap grid">
+      <div>
+        <h2>It's a good fit if</h2>
+        <ul class="fit">
+          <li>You have several AI agents open and lose track of what each one is doing.</li>
+          <li>You want agents to keep working while you are away, with a record you can check.</li>
+          <li>You want a hard cap on what your agents spend.</li>
+        </ul>
+      </div>
+      <div>
+        <h2>It's not</h2>
+        <ul class="fit not">
+          <li>A chatbot. It manages agents. You bring the agents.</li>
+          <li>A hosted service. You run it yourself.</li>
+          <li>Magic. Agents still need clear goals and your review.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap">
+      <h2>Questions</h2>
+      <details><summary>Is it really free?</summary><p>Yes. Paperclip is open source under the MIT licence. The only cost is the AI models your agents use, billed by your provider.</p></details>
+      <details><summary>Do I need to code?</summary><p>You need to paste one command into a terminal. After that you work in a web dashboard, like a task manager.</p></details>
+      <details><summary>Who makes Paperclip?</summary><p>Paperclip is built by the Paperclip AI team and its contributors. This page is an independent guide published by Buzzyfly. Buzzyfly is not affiliated with Paperclip AI. Official docs live at <a href="https://docs.paperclip.ing">docs.paperclip.ing</a>.</p></details>
+      <details><summary>Where can I get help?</summary><p>For Paperclip itself, use the <a href="https://docs.paperclip.ing">official docs</a> or <a href="https://github.com/paperclipai/paperclip/issues">GitHub issues</a>. For anything about this page, email <a href="mailto:support@buzzyfly.com">support@buzzyfly.com</a>.</p></details>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap">
+      <h2>Running a solo business too?</h2>
+      <p class="lede">Buzzyfly makes simple browser apps for freelancers: weekly resets, client follow-ups and onboarding. One-time price, no subscription.</p>
+      <a class="btn primary" href="https://www.buzzyfly.com/store">See the Buzzyfly apps</a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Paperclip is © Paperclip AI, released under the <a href="https://github.com/paperclipai/paperclip/blob/master/LICENSE">MIT licence</a>. This guide is published by <a href="https://www.buzzyfly.com/">Buzzyfly</a> · <a href="mailto:support@buzzyfly.com">support@buzzyfly.com</a></p>
+  </div>
+</footer>
+
+<script>
+document.querySelectorAll('[data-copy]').forEach(function(b){
+  b.addEventListener('click',function(){
+    var t=document.getElementById(b.dataset.copy).textContent;
+    var done=function(){b.textContent='Copied';setTimeout(function(){b.textContent='Copy command'},2000)};
+    if(navigator.clipboard){navigator.clipboard.writeText(t).then(done,function(){})}
+  });
+});
+</script>
+</body>
+</html>

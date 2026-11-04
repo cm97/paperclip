@@ -1,0 +1,36 @@
+name: Deploy paperclip.buzzyfly.com
+
+on:
+  push:
+    branches: [master]
+    paths: ["buzzyfly-site/**", ".github/workflows/deploy-buzzyfly-site.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-buzzyfly-site
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: buzzyfly-site
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Deploy to Cloudflare Workers
+        run: npx --yes wrangler@4 deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || 'a5780ae59a275c38ad62c2f9a3636c75' }}
+      - name: Check the live site
+        run: |
+          sleep 20
+          code=$(curl -s -o /dev/null -w '%{http_code}' https://paperclip.buzzyfly.com/)
+          echo "paperclip.buzzyfly.com: $code"
+          test "$code" = "200"

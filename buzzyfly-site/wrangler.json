@@ -1,0 +1,12 @@
+{
+	"$schema": "https://unpkg.com/wrangler@4/config-schema.json",
+	"name": "buzzyfly-paperclip",
+	"compatibility_date": "2026-09-01",
+	"assets": {
+		"directory": "./public",
+		"not_found_handling": "404-page"
+	},
+	"routes": [
+		{ "pattern": "paperclip.buzzyfly.com", "custom_domain": true }
+	]
+}
